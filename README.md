@@ -12,8 +12,9 @@ npm install
 npm run check   # 格式 + 规范 + 结构 + 文档一致性 + 单测
 ```
 
-用微信开发者工具打开项目根目录即可预览。`project.config.json` 里的 appid 目前是 `touristappid`（游客模式），
-本地开发和真机预览都够用；填自己的 appid 请改 `project.private.config.json`，该文件已被 gitignore。
+用微信开发者工具打开项目根目录即可预览。入库的 `project.config.json` 里 appid 固定为 `touristappid`（游客模式），
+个人 appid 只写进 `project.private.config.json` —— 该文件已被 gitignore，且其中的同名配置优先级更高，本地体验不受影响。
+开发者工具有时会把当前 appid 回写进 `project.config.json`，`npm run validate` 会拦住这种情况。
 
 ## AI 协作
 
@@ -68,7 +69,7 @@ it('[GREET-02] 6-10 点返回早上好', () => { ... });
 | ----------------------- | -------------------------------------- |
 | `npm run lint`          | ESLint 检查，零警告通过                |
 | `npm run format`        | Prettier 格式化                        |
-| `npm run validate`      | 校验 app.json 页面注册与实际文件一致   |
+| `npm run validate`      | 校验页面注册一致，且个人 appid 未入库  |
 | `npm run validate:docs` | 校验规格表、测试、utils 模块三者对得上 |
 | `npm test`              | 单元测试                               |
 | `npm run check`         | 上述全部，CI 同款                      |

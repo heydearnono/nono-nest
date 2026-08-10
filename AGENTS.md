@@ -21,17 +21,18 @@
 
 ## 1. 技术选型既定事实（禁止擅自更换）
 
-| 维度       | 选型                                      | 备注                                     |
-| ---------- | ----------------------------------------- | ---------------------------------------- |
-| 平台       | 微信原生小程序                            | **禁止引入 Taro / uni-app / 跨端框架**   |
-| 语言       | JavaScript（ES2022 module）               | 暂不引入 TypeScript；如需，先写提案      |
-| 样式       | 原生 WXSS                                 | **禁止引入 Sass / Tailwind / UI 组件库** |
-| 状态       | 页面 `data` + `app.globalData`            | **禁止引入状态管理库**                   |
-| 存储       | `wx.setStorageSync` / `wx.getStorageSync` | 无后端，无云开发                         |
-| 测试       | Vitest 4（Node 环境）                     | 只测纯函数，不模拟小程序运行时           |
-| 规范       | ESLint 10 + Prettier 3                    | 零警告通过                               |
-| 运行时依赖 | **零**                                    | `dependencies` 必须保持为空              |
-| Node       | >= 20（仅开发期工具链）                   | 与 CI 保持一致                           |
+| 维度       | 选型                                             | 备注                                                  |
+| ---------- | ------------------------------------------------ | ----------------------------------------------------- |
+| 平台       | 微信原生小程序                                   | **禁止引入 Taro / uni-app / 跨端框架**                |
+| 语言       | JavaScript（ES2022 module）                      | 暂不引入 TypeScript；如需，先写提案                   |
+| 样式       | 原生 WXSS                                        | **禁止引入 Sass / Tailwind / UI 组件库**              |
+| 状态       | 页面 `data` + `app.globalData`                   | **禁止引入状态管理库**                                |
+| 存储       | `wx.setStorageSync` / `wx.getStorageSync`        | 无后端，无云开发                                      |
+| appid      | 入库的 `project.config.json` 固定 `touristappid` | 个人 appid 只放不入库的 `project.private.config.json` |
+| 测试       | Vitest 4（Node 环境）                            | 只测纯函数，不模拟小程序运行时                        |
+| 规范       | ESLint 10 + Prettier 3                           | 零警告通过                                            |
+| 运行时依赖 | **零**                                           | `dependencies` 必须保持为空                           |
+| Node       | >= 20（仅开发期工具链）                          | 与 CI 保持一致                                        |
 
 新增任何依赖（含 devDependency）必须先在对应 `doc.md` 中说明必要性。
 
@@ -119,6 +120,9 @@ it('[HUNGER-02] 距上次喂食 6h 时饥饿度为 50', () => { ... });
 9. **澄清优先于猜测**：需求歧义时给 2~3 个候选项让用户选，不要开放式追问。
 10. **语言一致**：默认中文回复；文档与注释中文；标识符英文；commit message 英文。
 11. **收尾必跑门禁**：任何改动结束前跑 `npm run check`，绿了才算完成。
+12. **不把个人 appid 改进入库文件**：`project.config.json` 的 appid 必须保持 `touristappid`。
+    如果开发者工具回写了它，`npm run validate` 会失败 —— 把真实 appid 移回
+    `project.private.config.json`，不要改门禁去迁就它。
 
 ## 6. prompt 迭代要求
 
