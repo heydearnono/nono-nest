@@ -1,0 +1,11 @@
+{
+  "pages": ["pages/home/home"],
+  "window": {
+    "navigationBarTitleText": "糯糯宠物屋",
+    "navigationBarBackgroundColor": "#ffd9e6",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fff5f8"
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

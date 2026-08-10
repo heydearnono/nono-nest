@@ -1,0 +1,6 @@
+<!-- 首页：目前只验证工程链路，宠物形象与交互后续实现 -->
+<view class="home">
+  <view class="home__title">{{title}}</view>
+  <view class="home__hint">{{hint}}</view>
+  <view class="home__egg">🥚</view>
+</view>

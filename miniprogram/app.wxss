@@ -1,0 +1,17 @@
+page,
+view,
+text,
+button {
+  box-sizing: border-box;
+}
+
+page {
+  /* 童趣配色：奶油底 + 樱花粉，后续主题色统一从这里取 */
+  --color-bg: #fff5f8;
+  --color-primary: #ff8fb1;
+  --color-text: #5a4a52;
+
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+}

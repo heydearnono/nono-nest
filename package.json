@@ -1,0 +1,27 @@
+{
+  "name": "nono-nest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nono's Nest（糯糯宠物屋）—— 给 nono 的小宠物养成微信小程序",
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate": "node scripts/validate-structure.mjs",
+    "validate:docs": "node scripts/validate-docs.mjs",
+    "check": "npm run format:check && npm run lint && npm run validate && npm run validate:docs && npm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.8.0",
+    "globals": "17.9.0",
+    "prettier": "3.9.6",
+    "vitest": "4.1.10"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

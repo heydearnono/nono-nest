@@ -1,0 +1,25 @@
+# 依赖
+node_modules/
+
+# 微信开发者工具本地私有配置（含个人 appid 与本地路径，不入库）
+project.private.config.json
+
+# 构建产物
+miniprogram_npm/
+dist/
+
+# 测试与工具缓存
+coverage/
+.eslintcache
+.vitest/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# 日志
+*.log
+npm-debug.log*
