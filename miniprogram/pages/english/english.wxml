@@ -1,0 +1,88 @@
+<!-- 英语打卡：一张表 + 一个大按钮。什么都不填也能提交（ENG-06），切分在 utils -->
+<view class="eng" wx:if="{{form}}">
+  <view class="eng__hint" wx:if="{{done}}">今天的英语已经记下啦 ✅</view>
+  <view class="eng__hint" wx:else>今天上了什么课呀？🅰️</view>
+
+  <view class="card">
+    <view class="field">
+      <text class="field__label">学了多久</text>
+      <input
+        class="field__input field__input--num"
+        type="number"
+        value="{{form.minutes}}"
+        data-field="minutes"
+        bindinput="onInput"
+      />
+      <text class="field__unit">分钟</text>
+    </view>
+
+    <view class="field">
+      <text class="field__label">跟读次数</text>
+      <view class="stepper">
+        <view
+          class="stepper__btn"
+          data-delta="-1"
+          bindtap="onStepAloud"
+          hover-class="stepper__btn--hover"
+          >−</view
+        >
+        <text class="stepper__value">{{form.readAloudCount}}</text>
+        <view
+          class="stepper__btn"
+          data-delta="1"
+          bindtap="onStepAloud"
+          hover-class="stepper__btn--hover"
+          >＋</view
+        >
+      </view>
+      <text class="field__unit">/ {{aloudMax}}</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="field field--col">
+      <text class="field__label">今天的单词</text>
+      <textarea
+        class="field__area"
+        value="{{form.words}}"
+        placeholder="用逗号隔开，比如：apple, bear"
+        maxlength="300"
+        data-field="words"
+        bindinput="onInput"
+      />
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="field field--col">
+      <text class="field__label">今天的句子</text>
+      <textarea
+        class="field__area"
+        value="{{form.sentences}}"
+        placeholder="用竖线隔开，比如：I see a bear. | Good night."
+        maxlength="300"
+        data-field="sentences"
+        bindinput="onInput"
+      />
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="field field--col">
+      <text class="field__label">家长备注</text>
+      <textarea
+        class="field__area"
+        value="{{form.parentNote}}"
+        placeholder="不填也可以～"
+        maxlength="200"
+        data-field="parentNote"
+        bindinput="onInput"
+      />
+    </view>
+  </view>
+
+  <!-- 按钮不 disabled：点了要给出「今天已经打过」的提示（与 pet.wxml 同一条） -->
+  <view class="submit {{done ? 'submit--off' : ''}}" bindtap="onSubmit" hover-class="submit--hover">
+    {{done ? '今天已完成' : '完成英语 +2⭐'}}
+  </view>
+</view>

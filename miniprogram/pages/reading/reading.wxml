@@ -1,0 +1,93 @@
+<!-- 阅读打卡：一张表 + 一个大按钮。可选值来自 READ_OPTIONS，校验在 learningBlock -->
+<view class="read" wx:if="{{form}}">
+  <view class="read__hint" wx:if="{{done}}">今天这本已经记下啦 ✅</view>
+  <view class="read__hint" wx:else>今天读了什么呀？📖</view>
+
+  <view class="card">
+    <view class="field">
+      <text class="field__label">书名</text>
+      <input
+        class="field__input"
+        value="{{form.bookTitle}}"
+        placeholder="比如：小熊的一天"
+        data-field="bookTitle"
+        bindinput="onInput"
+      />
+    </view>
+
+    <view class="field">
+      <text class="field__label">读了多久</text>
+      <input
+        class="field__input field__input--num"
+        type="number"
+        value="{{form.minutes}}"
+        data-field="minutes"
+        bindinput="onInput"
+      />
+      <text class="field__unit">分钟</text>
+    </view>
+
+    <view class="field">
+      <text class="field__label">读了几页</text>
+      <input
+        class="field__input field__input--num"
+        type="number"
+        value="{{form.pages}}"
+        data-field="pages"
+        bindinput="onInput"
+      />
+      <text class="field__unit">页</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="pick__label">怎么读的</view>
+    <view class="pick">
+      <view
+        class="chip {{form.mode === item.value ? 'chip--on' : ''}}"
+        wx:for="{{modes}}"
+        wx:key="value"
+        data-field="mode"
+        data-value="{{item.value}}"
+        bindtap="onPick"
+        hover-class="chip--hover"
+      >
+        {{item.label}}
+      </view>
+    </view>
+
+    <view class="pick__label">读完的心情</view>
+    <view class="pick">
+      <view
+        class="mood {{form.mood === item ? 'mood--on' : ''}}"
+        wx:for="{{moods}}"
+        wx:key="*this"
+        data-field="mood"
+        data-value="{{item}}"
+        bindtap="onPick"
+        hover-class="chip--hover"
+      >
+        {{item}}
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="field field--col">
+      <text class="field__label">最喜欢哪一段</text>
+      <textarea
+        class="field__area"
+        value="{{form.favorite}}"
+        placeholder="不填也可以～"
+        maxlength="200"
+        data-field="favorite"
+        bindinput="onInput"
+      />
+    </view>
+  </view>
+
+  <!-- 按钮不 disabled：点了要给出「为什么不能」的提示（与 pet.wxml 同一条） -->
+  <view class="submit {{done ? 'submit--off' : ''}}" bindtap="onSubmit" hover-class="submit--hover">
+    {{done ? '今天已完成' : '完成阅读 +2⭐'}}
+  </view>
+</view>

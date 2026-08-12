@@ -1,0 +1,81 @@
+<!-- 宠物页：大 emoji + 等级 + 两条状态 + 形象选择 + 喂食/玩耍。
+     阈值判断全在 utils/pet.js 的 petState 里，这里只渲染它给的结论 -->
+<view class="pet" wx:if="{{pet}}">
+  <view class="stage">
+    <view
+      class="stage__body {{bouncing ? 'stage__body--bounce' : ''}}"
+      bindtap="onTapPet"
+      hover-class="stage__body--hover"
+    >
+      {{pet.emoji}}
+    </view>
+    <view class="stage__badge" wx:if="{{pet.fullnessLow}}">饿饿</view>
+  </view>
+
+  <view class="title">{{pet.name}} · Lv.{{pet.petLevel}} {{pet.levelTitle}}</view>
+
+  <view class="exp">
+    <view class="exp__fill" style="width: {{pet.expPercent}}%"></view>
+  </view>
+  <view class="exp__text">{{pet.petExp}} / {{pet.expToNext}} 经验</view>
+
+  <view class="bars">
+    <view class="bar">
+      <text class="bar__label">🍖 饱腹</text>
+      <text
+        class="bar__dot {{i <= pet.fullness ? 'bar__dot--on' : ''}}"
+        wx:for="{{scale}}"
+        wx:for-item="i"
+        wx:key="*this"
+        >♥</text
+      >
+    </view>
+    <view class="bar">
+      <text class="bar__label">💖 开心</text>
+      <text
+        class="bar__dot {{i <= pet.mood ? 'bar__dot--on' : ''}}"
+        wx:for="{{scale}}"
+        wx:for-item="i"
+        wx:key="*this"
+        >♥</text
+      >
+    </view>
+  </view>
+
+  <view class="types">
+    <view
+      class="types__item {{item.current ? 'types__item--on' : ''}}"
+      wx:for="{{pet.types}}"
+      wx:key="type"
+      data-type="{{item.type}}"
+      bindtap="onTapType"
+      hover-class="types__item--hover"
+    >
+      <view class="types__emoji">{{item.emoji}}</view>
+      <view class="types__name">{{item.displayName}}</view>
+    </view>
+  </view>
+
+  <view class="actions">
+    <!-- 按钮不 disabled：点了要给出「为什么不能」的提示，禁用掉就没有反馈了 -->
+    <view
+      class="action action--feed {{pet.feedBlock ? 'action--off' : ''}}"
+      bindtap="onTapFeed"
+      hover-class="action--hover"
+    >
+      <view class="action__icon">🍖</view>
+      <view class="action__name">喂食</view>
+      <view class="action__hint">还有 {{pet.petFood}} 点粮</view>
+    </view>
+
+    <view
+      class="action action--play {{pet.playBlock ? 'action--off' : ''}}"
+      bindtap="onTapPlay"
+      hover-class="action--hover"
+    >
+      <view class="action__icon">💕</view>
+      <view class="action__name">玩耍</view>
+      <view class="action__hint">+5 经验</view>
+    </view>
+  </view>
+</view>

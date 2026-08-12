@@ -22,7 +22,7 @@ const GLOSSARY = join(ROOT, 'docs', 'glossary.md');
 const UTILS_DIR = join(ROOT, 'miniprogram', 'utils');
 const TESTS_DIR = join(ROOT, 'tests');
 
-// Spec ID 格式：大写区名 + 两位数字，如 HUNGER-02
+// Spec ID 格式：大写区名 + 两位数字，如 FULLNESS-02
 
 const errors = [];
 
@@ -50,7 +50,7 @@ async function collect(dir, suffix) {
 /**
  * 从 doc.md 中提取声明的 Spec ID。
  *
- * 只认规格表里「以 ID 开头的表格行」（`| HUNGER-02 | ... |`），
+ * 只认规格表里「以 ID 开头的表格行」（`| FULLNESS-02 | ... |`），
  * 正文里顺带提到的 ID 不算声明，这样才能区分「定义」和「引用」。
  */
 function declaredIds(markdown) {

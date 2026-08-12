@@ -2,7 +2,7 @@
   "name": "nono-nest",
   "version": "0.1.0",
   "private": true,
-  "description": "Nono's Nest（糯糯宠物屋）—— 给 nono 的小宠物养成微信小程序",
+  "description": "Nono's Nest（糯糯工作台）—— 给 nono 的成长陪伴微信小程序",
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",

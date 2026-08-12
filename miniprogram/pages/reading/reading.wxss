@@ -1,0 +1,135 @@
+.read {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.read__hint {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.card {
+  padding: 8rpx 24rpx;
+  border-radius: 32rpx;
+  margin-top: 24rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid #f7eef2;
+  font-size: 28rpx;
+}
+
+/* 最后一行不要下边框，卡片底部才干净 */
+.field:last-child {
+  border-bottom: none;
+}
+
+.field--col {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.field__label {
+  flex-shrink: 0;
+  width: 180rpx;
+  opacity: 0.7;
+}
+
+.field__input {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+}
+
+/* 数字靠右贴着单位，读起来是「20 分钟」而不是「20      分钟」 */
+.field__input--num {
+  text-align: right;
+}
+
+.field__unit {
+  margin-left: 12rpx;
+  font-size: 26rpx;
+  opacity: 0.5;
+}
+
+.field__area {
+  width: 100%;
+  height: 140rpx;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+}
+
+.pick__label {
+  padding-top: 24rpx;
+  font-size: 28rpx;
+  opacity: 0.7;
+}
+
+.pick {
+  display: flex;
+  gap: 16rpx;
+  padding: 16rpx 0 24rpx;
+}
+
+.chip {
+  flex: 1;
+  padding: 20rpx 0;
+  border: 4rpx solid transparent;
+  border-radius: 24rpx;
+  background-color: #fdf1f5;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.chip--on {
+  border-color: var(--color-primary);
+  background-color: #fff0f5;
+  font-weight: 600;
+}
+
+.chip--hover {
+  transform: scale(0.95);
+}
+
+.mood {
+  flex: 1;
+  padding: 12rpx 0;
+  border: 4rpx solid transparent;
+  border-radius: 24rpx;
+  background-color: #fdf1f5;
+  font-size: 44rpx;
+  text-align: center;
+}
+
+.mood--on {
+  border-color: var(--color-primary);
+  background-color: #fff0f5;
+}
+
+.submit {
+  /* 5 岁的手指要够大的靶（vision.md「什么算好」第 3 条） */
+  padding: 36rpx 0;
+  border-radius: 40rpx;
+  margin-top: 40rpx;
+  background: linear-gradient(135deg, #ffb0c8 0%, #ff8fb1 100%);
+  box-shadow: 0 6rpx 16rpx rgb(255 143 177 / 24%);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}
+
+/* 不 disabled，只降透明度：点了仍要给出「今天已经打过」的提示 */
+.submit--off {
+  opacity: 0.45;
+}
+
+.submit--hover {
+  transform: scale(0.97);
+}

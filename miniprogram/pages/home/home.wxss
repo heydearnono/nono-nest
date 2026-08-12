@@ -1,25 +1,96 @@
 .home {
-  display: flex;
   min-height: 100vh;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48rpx;
+  padding: 32rpx 24rpx 64rpx;
 }
 
-.home__title {
-  font-size: 48rpx;
+.home__greeting {
+  font-size: 40rpx;
   font-weight: 600;
   color: var(--color-primary);
 }
 
-.home__hint {
+.home__stat {
+  display: flex;
+  align-items: baseline;
   margin-top: 16rpx;
-  font-size: 28rpx;
-  opacity: 0.7;
 }
 
-.home__egg {
-  margin-top: 64rpx;
-  font-size: 160rpx;
+.home__progress {
+  font-size: 56rpx;
+  font-weight: 700;
+}
+
+.home__streak {
+  margin-left: 20rpx;
+  font-size: 28rpx;
+}
+
+.home__streak--zero {
+  opacity: 0.5;
+}
+
+.purse {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.purse__item {
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  /* 三列：24rpx 页边距 + 两道 16rpx 间隙，格子宽度用 calc 分剩下的 */
+  gap: 16rpx;
+  margin-top: 32rpx;
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  width: calc((100% - 32rpx) / 3);
+  /* 5 岁的手指要够大的靶：一次互动 10 秒内结束（vision.md「什么算好」第 4 条） */
+  height: 180rpx;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 4rpx solid transparent;
+  border-radius: 28rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+.cell--hover {
+  transform: scale(0.96);
+}
+
+.cell--done {
+  border-color: var(--color-primary);
+  background-color: #fff0f5;
+}
+
+.cell__icon {
+  font-size: 64rpx;
+  line-height: 1;
+}
+
+.cell__name {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+}
+
+.cell__check {
+  position: absolute;
+  top: 8rpx;
+  right: 16rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--color-primary);
 }

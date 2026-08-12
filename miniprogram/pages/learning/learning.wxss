@@ -1,0 +1,96 @@
+.learn {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.learn__hint {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.learn__stat {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+}
+
+.list {
+  margin-top: 28rpx;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+  border: 4rpx solid transparent;
+  border-radius: 32rpx;
+  margin-bottom: 16rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+.row--hover {
+  transform: scale(0.98);
+}
+
+.row--done {
+  border-color: #8fd6a8;
+  background-color: #f2fbf5;
+}
+
+/* 还没做的那三格：降透明度而不是 disabled —— 点了要给出「还在做」的提示 */
+.row--soon {
+  opacity: 0.45;
+}
+
+.row__icon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #ffe4ef 0%, #f0e8ff 100%);
+  font-size: 52rpx;
+  line-height: 96rpx;
+  text-align: center;
+}
+
+.row__main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 20rpx;
+}
+
+.row__title {
+  display: flex;
+  align-items: center;
+}
+
+.row__name {
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.row__tag {
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  margin-left: 12rpx;
+  background-color: #d9f2e3;
+  font-size: 20rpx;
+  color: #3f8f5f;
+}
+
+.row__tag--soon {
+  background-color: #eee;
+  color: #888;
+}
+
+.row__desc {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  opacity: 0.55;
+}
+
+.row__arrow {
+  font-size: 32rpx;
+  opacity: 0.3;
+}

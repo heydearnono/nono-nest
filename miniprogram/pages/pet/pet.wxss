@@ -1,0 +1,199 @@
+.pet {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  height: 320rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 40rpx;
+  /* 天空 → 樱花 → 薰衣草，与线上宠物区的渐变同一路子 */
+  background: linear-gradient(180deg, #dff0ff 0%, #ffeef4 60%, #f3ebff 100%);
+}
+
+.stage__body {
+  font-size: 160rpx;
+  line-height: 1;
+}
+
+.stage__body--hover {
+  transform: scale(0.94);
+}
+
+.stage__body--bounce {
+  animation: pet-bounce 0.4s ease;
+}
+
+@keyframes pet-bounce {
+  0% {
+    transform: translateY(0);
+  }
+
+  40% {
+    transform: translateY(-24rpx) scale(1.06);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.stage__badge {
+  position: absolute;
+  top: 24rpx;
+  right: 24rpx;
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  background-color: #ffe8cc;
+  font-size: 24rpx;
+  color: #e07b39;
+}
+
+.title {
+  margin-top: 24rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+.exp {
+  overflow: hidden;
+  height: 12rpx;
+  margin-top: 16rpx;
+  border-radius: 999rpx;
+  background-color: #fff;
+}
+
+.exp__fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background-color: var(--color-primary);
+  transition: width 0.4s ease;
+}
+
+.exp__text {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.bars {
+  margin-top: 28rpx;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 24rpx;
+  border-radius: 24rpx;
+  margin-bottom: 12rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+  font-size: 28rpx;
+}
+
+.bar__label {
+  margin-right: auto;
+}
+
+.bar__dot {
+  margin-left: 6rpx;
+  font-size: 30rpx;
+  color: #ffd9e6;
+}
+
+.bar__dot--on {
+  color: var(--color-primary);
+}
+
+.types {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 28rpx;
+}
+
+.types__item {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  padding: 16rpx 0;
+  border: 4rpx solid transparent;
+  border-radius: 24rpx;
+  background-color: #fff;
+}
+
+.types__item--on {
+  border-color: var(--color-primary);
+  background-color: #fff0f5;
+}
+
+.types__item--hover {
+  transform: scale(0.95);
+}
+
+.types__emoji {
+  font-size: 48rpx;
+  line-height: 1;
+}
+
+.types__name {
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  opacity: 0.6;
+}
+
+.actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 36rpx;
+}
+
+.action {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  /* 5 岁的手指要够大的靶（vision.md「什么算好」第 3 条） */
+  padding: 36rpx 0;
+  border-radius: 36rpx;
+  box-shadow: 0 6rpx 16rpx rgb(255 143 177 / 16%);
+}
+
+.action--feed {
+  background: linear-gradient(180deg, #ffe8cc 0%, #fff8e6 100%);
+}
+
+.action--play {
+  background: linear-gradient(180deg, #ffdfeb 0%, #f6ecff 100%);
+}
+
+/* 不 disabled，只降透明度：点了仍要给出「为什么不能」的提示 */
+.action--off {
+  opacity: 0.45;
+}
+
+.action--hover {
+  transform: scale(0.96);
+}
+
+.action__icon {
+  font-size: 72rpx;
+  line-height: 1;
+}
+
+.action__name {
+  margin-top: 12rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.action__hint {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  opacity: 0.6;
+}

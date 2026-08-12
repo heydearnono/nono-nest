@@ -1,0 +1,104 @@
+<!-- 健康页：四张卡片。emoji / 上限 / 周目标都来自 healthState，页面不写这些数 -->
+<view class="health" wx:if="{{log}}">
+  <view class="health__hint">今天也要好好照顾自己呀 🥗</view>
+
+  <!-- 饮食 -->
+  <view class="card">
+    <view class="card__title">饮食 🥗</view>
+
+    <view class="toggle" data-field="lessSugar" bindtap="onToggle" hover-class="toggle--hover">
+      <text class="toggle__label">少吃糖</text>
+      <view class="toggle__box {{log.lessSugar ? 'toggle__box--on' : ''}}">✓</view>
+    </view>
+    <view class="inline" wx:if="{{log.lessSugar}}">
+      <text class="inline__label">今天吃了</text>
+      <input
+        class="inline__input"
+        type="number"
+        value="{{log.sugarCount}}"
+        data-field="sugarCount"
+        bindinput="onInput"
+      />
+      <text class="inline__unit">颗糖（最多 {{sugarMax}}）</text>
+    </view>
+
+    <view class="toggle" data-field="vegetables" bindtap="onToggle" hover-class="toggle--hover">
+      <text class="toggle__label">吃青菜 <text class="toggle__star">+1⭐</text></text>
+      <view class="toggle__box {{log.vegetables ? 'toggle__box--on' : ''}}">✓</view>
+    </view>
+
+    <view class="toggle" data-field="fruit" bindtap="onToggle" hover-class="toggle--hover">
+      <text class="toggle__label">吃水果</text>
+      <view class="toggle__box {{log.fruit ? 'toggle__box--on' : ''}}">✓</view>
+    </view>
+
+    <view class="toggle" data-field="water" bindtap="onToggle" hover-class="toggle--hover">
+      <text class="toggle__label">多喝水</text>
+      <view class="toggle__box {{log.water ? 'toggle__box--on' : ''}}">✓</view>
+    </view>
+  </view>
+
+  <!-- 便便：点一个心情即完成 -->
+  <view class="card">
+    <view class="card__title">便便 💩 <text class="card__star">+1⭐</text></view>
+    <view class="card__tip">今天的便便还顺利吗？</view>
+    <view class="icons">
+      <view
+        class="icons__item {{item.current ? 'icons__item--on' : ''}}"
+        wx:for="{{poopIcons}}"
+        wx:key="icon"
+        data-icon="{{item.icon}}"
+        bindtap="onPickPoop"
+        hover-class="icons__item--hover"
+        >{{item.icon}}</view
+      >
+    </view>
+  </view>
+
+  <!-- 洗澡：标题带本周计数，bathWeek 为 null 时不显示 -->
+  <view class="card">
+    <view class="card__title">
+      洗澡 🛁
+      <text class="card__week" wx:if="{{bathWeek}}"
+        >本周 {{bathWeek.done}}/{{bathWeek.target}}</text
+      >
+      <text class="card__star">+1⭐</text>
+    </view>
+
+    <view class="toggle" data-field="bath" bindtap="onToggle" hover-class="toggle--hover">
+      <text class="toggle__label">今天洗澡了</text>
+      <view class="toggle__box {{log.bath ? 'toggle__box--on' : ''}}">✓</view>
+    </view>
+    <view
+      class="toggle"
+      wx:if="{{log.bath}}"
+      data-field="bathHair"
+      bindtap="onToggle"
+      hover-class="toggle--hover"
+    >
+      <text class="toggle__label">还洗了头发</text>
+      <view class="toggle__box {{log.bathHair ? 'toggle__box--on' : ''}}">✓</view>
+    </view>
+  </view>
+
+  <!-- 运动 -->
+  <view class="card">
+    <view class="card__title">运动 🏃 <text class="card__star">+1⭐</text></view>
+
+    <view class="toggle" data-field="exercise" bindtap="onToggle" hover-class="toggle--hover">
+      <text class="toggle__label">今天运动了</text>
+      <view class="toggle__box {{log.exercise ? 'toggle__box--on' : ''}}">✓</view>
+    </view>
+    <view class="inline" wx:if="{{log.exercise}}">
+      <text class="inline__label">动了</text>
+      <input
+        class="inline__input"
+        type="number"
+        value="{{log.exerciseMinutes}}"
+        data-field="exerciseMinutes"
+        bindinput="onInput"
+      />
+      <text class="inline__unit">分钟</text>
+    </view>
+  </view>
+</view>

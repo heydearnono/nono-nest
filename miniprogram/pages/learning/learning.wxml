@@ -1,0 +1,27 @@
+<!-- 学习入口页：五格列表。ready / done 都由 listLearning 给出，页面不判断 -->
+<view class="learn">
+  <view class="learn__hint">今天也要轻轻学习哦 📚</view>
+  <view class="learn__stat">今天 {{done}} / {{total}} · 每项 +2⭐</view>
+
+  <view class="list">
+    <view
+      class="row {{item.done ? 'row--done' : ''}} {{item.ready ? '' : 'row--soon'}}"
+      wx:for="{{items}}"
+      wx:key="module"
+      data-index="{{index}}"
+      bindtap="onTapModule"
+      hover-class="row--hover"
+    >
+      <view class="row__icon">{{item.icon}}</view>
+      <view class="row__main">
+        <view class="row__title">
+          <text class="row__name">{{item.name}}</text>
+          <text class="row__tag" wx:if="{{item.done}}">已完成</text>
+          <text class="row__tag row__tag--soon" wx:elif="{{!item.ready}}">还在做</text>
+        </view>
+        <view class="row__desc">{{item.desc}}</view>
+      </view>
+      <view class="row__arrow">→</view>
+    </view>
+  </view>
+</view>

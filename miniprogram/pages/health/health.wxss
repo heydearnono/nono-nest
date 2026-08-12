@@ -1,0 +1,148 @@
+/* 健康页的四张卡片。
+
+   与 reading.wxss / english.wxss 只共用一个 card 类名 —— 这一页没有提交按钮
+   （点开关即落盘），也没有 field--col 那套标签 + 输入框的竖排版。所以
+   english.wxss 头注释里那条「等第三个表单页出现再抽公共层」**不在这一轮触发**：
+   它等的是数学 / 识字页，那两个才是真的表单。一个类名不值得提到全局。 */
+
+.health {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.health__hint {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.card {
+  padding: 28rpx 24rpx;
+  border-radius: 32rpx;
+  margin-top: 24rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+.card__title {
+  display: flex;
+  align-items: center;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.card__week {
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  margin-left: 12rpx;
+  background-color: #e8f1ff;
+  font-size: 22rpx;
+  font-weight: 400;
+  color: #4a7bb5;
+}
+
+.card__star {
+  margin-left: auto;
+  font-size: 22rpx;
+  font-weight: 400;
+  opacity: 0.5;
+}
+
+.card__tip {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  opacity: 0.55;
+}
+
+/* 一行开关：整行可点，右侧一个圈。不 disabled、不用 switch 组件 ——
+   switch 的点击热区只有它自己那一小块，5 岁的孩子按不准 */
+.toggle {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 4rpx;
+  border-radius: 20rpx;
+}
+
+.toggle--hover {
+  background-color: #fff5f8;
+}
+
+.toggle__label {
+  flex: 1;
+  font-size: 30rpx;
+}
+
+.toggle__star {
+  font-size: 22rpx;
+  opacity: 0.45;
+}
+
+.toggle__box {
+  width: 52rpx;
+  height: 52rpx;
+  border: 4rpx solid #f0dde5;
+  border-radius: 999rpx;
+  background-color: #fff;
+  font-size: 30rpx;
+  line-height: 52rpx;
+  color: transparent;
+  text-align: center;
+}
+
+.toggle__box--on {
+  border-color: #8fd6a8;
+  background-color: #8fd6a8;
+  color: #fff;
+}
+
+/* 开关打开后才露出的那一行取值 */
+.inline {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 4rpx 12rpx 28rpx;
+  font-size: 26rpx;
+}
+
+.inline__label {
+  opacity: 0.6;
+}
+
+.inline__input {
+  width: 120rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 16rpx;
+  margin: 0 12rpx;
+  background-color: #fff5f8;
+  font-size: 30rpx;
+  text-align: center;
+}
+
+.inline__unit {
+  opacity: 0.6;
+}
+
+.icons {
+  display: flex;
+  margin-top: 16rpx;
+}
+
+.icons__item {
+  width: 120rpx;
+  height: 120rpx;
+  border: 6rpx solid transparent;
+  border-radius: 32rpx;
+  margin-right: 20rpx;
+  background-color: #fff5f8;
+  font-size: 64rpx;
+  line-height: 108rpx;
+  text-align: center;
+}
+
+.icons__item--hover {
+  transform: scale(0.94);
+}
+
+.icons__item--on {
+  border-color: var(--color-primary);
+  background-color: #ffe4ef;
+}

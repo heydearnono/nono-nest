@@ -1,0 +1,119 @@
+/* 与 reading.wxss 的 card / field / submit 是同一套写法。
+   没有抽到 app.wxss：全局样式表现在只放变量与 reset，为两个页面把表单样式提上去
+   会让第三个页面（数学 / 识字）默认继承一套它未必要的排版。等第三个表单页出现，
+   如果还是这套，那时再提 —— 两处相同不算重复，三处才是（AGENTS.md 第 3 节的取舍） */
+.eng {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.eng__hint {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.card {
+  padding: 8rpx 24rpx;
+  border-radius: 32rpx;
+  margin-top: 24rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid #f7eef2;
+  font-size: 28rpx;
+}
+
+.field:last-child {
+  border-bottom: none;
+}
+
+.field--col {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.field__label {
+  flex-shrink: 0;
+  width: 180rpx;
+  opacity: 0.7;
+}
+
+.field__input {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+}
+
+.field__input--num {
+  text-align: right;
+}
+
+.field__unit {
+  margin-left: 12rpx;
+  font-size: 26rpx;
+  opacity: 0.5;
+}
+
+.field__area {
+  width: 100%;
+  height: 140rpx;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+}
+
+.stepper {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.stepper__btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 999rpx;
+  background-color: #fdf1f5;
+  font-size: 36rpx;
+  line-height: 64rpx;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.stepper__btn--hover {
+  transform: scale(0.9);
+}
+
+.stepper__value {
+  min-width: 72rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+.submit {
+  /* 5 岁的手指要够大的靶（vision.md「什么算好」第 3 条） */
+  padding: 36rpx 0;
+  border-radius: 40rpx;
+  margin-top: 40rpx;
+  background: linear-gradient(135deg, #ffb0c8 0%, #ff8fb1 100%);
+  box-shadow: 0 6rpx 16rpx rgb(255 143 177 / 24%);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}
+
+/* 不 disabled，只降透明度：点了仍要给出「今天已经打过」的提示 */
+.submit--off {
+  opacity: 0.45;
+}
+
+.submit--hover {
+  transform: scale(0.97);
+}
