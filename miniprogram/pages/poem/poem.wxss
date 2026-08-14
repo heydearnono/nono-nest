@@ -1,0 +1,127 @@
+/* 国学页：一屏列多张诗卡，正文逐句一行。
+   与 literacy.wxss 都有 .card / .acts / .act 三个类名，形状不同（那边是一张居中的大字卡，
+   这边是可滚动的多张诗卡）—— 页面级样式各自独立是 P5 起的做法，
+   等第三个「多卡列表」页出现（数学）再评估抽公共层。 */
+
+.poem {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.poem__count {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.poem__sum {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+}
+
+.poem__done {
+  margin-top: 16rpx;
+  font-size: 28rpx;
+  color: var(--color-primary);
+}
+
+.sect {
+  margin: 36rpx 0 16rpx 8rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.card {
+  padding: 32rpx 28rpx;
+  border-radius: 32rpx;
+  margin-bottom: 24rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+.card__title {
+  font-size: 42rpx;
+  font-weight: 700;
+}
+
+.card__by {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.tag {
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  background-color: #fdf1f5;
+  font-size: 24rpx;
+}
+
+.tag--on {
+  background-color: #e8f7ee;
+  color: #3f9e6a;
+}
+
+.tag--due {
+  background-color: #fff3e0;
+  color: #d98324;
+}
+
+/* 正文逐句一行排开（content 本来就是句子数组），不做「点某一句」——
+   那是线上为逐句跟读做的交互，跟读本轮不做 */
+.lines {
+  margin-top: 24rpx;
+}
+
+.line {
+  font-size: 36rpx;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.acts {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 32rpx;
+}
+
+/* 5 岁的手指要够大的靶（vision.md「什么算好」第 3 条） */
+.act {
+  flex: 1;
+  padding: 32rpx 0;
+  border-radius: 40rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}
+
+.act--yes {
+  background: linear-gradient(135deg, #ffb0c8 0%, #ff8fb1 100%);
+  box-shadow: 0 6rpx 16rpx rgb(255 143 177 / 24%);
+}
+
+/* 「还没背下来」不做成灰色的否定按钮：它照样打卡发星光，不是惩罚 */
+.act--no {
+  background: linear-gradient(135deg, #bcd8ff 0%, #8fb8ff 100%);
+  box-shadow: 0 6rpx 16rpx rgb(143 184 255 / 24%);
+}
+
+.act--hover {
+  transform: scale(0.97);
+}
+
+.empty {
+  padding: 120rpx 0;
+  font-size: 32rpx;
+  opacity: 0.6;
+  text-align: center;
+}

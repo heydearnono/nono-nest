@@ -170,8 +170,8 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
   it('[IMPORT-01] 一份完整线上导出 JSON 得到形状正确的存档', () => {
     const result = importOnlineSave(ONLINE_EXPORT);
 
-    // 顶层键与默认存档完全一致：线上多出来的 9 个键（pointRules、rewardRules、
-    // medalProgress、learningProgress、stickerCollection……）本层不接
+    // 顶层键与默认存档完全一致：线上多出来的 8 个键（pointRules、rewardRules、
+    // medalProgress、stickerCollection……）本层不接。learningProgress 只接 literacy 与 guoxue 两支
     expect(Object.keys(result).sort()).toEqual(Object.keys(defaultSave()).sort());
 
     expect(result.currency).toEqual({ star: 42, gem: 2, petFood: 11, medal: 6 });
@@ -181,11 +181,199 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
     expect(result.days['2026-08-11'].completedTasks).toEqual({ wake: true });
     expect(result.redemptions[0].rewardId).toBe('snack');
     expect(result.achievements).toEqual(['early-bird']);
-    expect(result.parent).toEqual({ pin: '4321', dailyGoal: 8, note: '暑假加一项阅读' });
+    expect(result.parent).toEqual({
+      pin: '4321',
+      dailyGoal: 8,
+      note: '暑假加一项阅读',
+      // 线上没有这两个，落 normalizeSave 的默认值（IMPORT-16）
+      pinFails: 0,
+      pinLockedUntil: 0,
+    });
 
     // ISO 字符串换成毫秒数，且能 JSON 往返不变形
     expect(result.createdAt).toBe(Date.parse('2026-06-01T02:00:00.000Z'));
     expect(result.updatedAt).toBe(Date.parse('2026-08-11T09:30:00.000Z'));
     expect(JSON.parse(JSON.stringify(result))).toEqual(result);
+  });
+
+  it('[IMPORT-11] 线上识字的五个结构映射成一张 chars 表', () => {
+    const result = importOnlineSave({
+      learningProgress: {
+        literacy: {
+          // 线上一次评分写六个到期日，到期判定是 some(d <= today) —— 只有最早那个说话
+          charReviewSchedule: {
+            天: ['2026-08-13', '2026-08-14', '2026-08-16', '2026-08-19'],
+            木: ['2026-09-11', '2026-08-20'],
+          },
+          masteredChars: ['的', '一'],
+          reviewChars: ['天', '是'],
+          learnedChars: ['天', '的', '在'],
+          charWrongCounts: { 天: 3, 一: 1 },
+        },
+      },
+    });
+
+    expect(result.learningProgress.literacy.chars).toEqual({
+      // 线上的已掌握直接认，不打回重学（哪怕 charWrongCounts 里还有它）
+      的: { step: 7, due: '', wrong: 0 },
+      一: { step: 7, due: '', wrong: 1 },
+      // 有调度的取那六个日期里最早的一个，不是数组里的第一个
+      天: { step: 0, due: '2026-08-13', wrong: 3 },
+      木: { step: 0, due: '2026-08-20', wrong: 0 },
+      // 只在列表里的推不出档位，按「学过、立刻到期」算 —— 空串小于任何日期键
+      是: { step: 0, due: '', wrong: 0 },
+      在: { step: 0, due: '', wrong: 0 },
+    });
+
+    // 线上同层的 reading / english 永久不接（在线上就是死字段）；
+    // guoxue 由 IMPORT-14 接走，math 由 IMPORT-15 接走 —— learningProgress 到此接完
+    expect(Object.keys(result.learningProgress)).toEqual(['literacy', 'guoxue', 'math']);
+    // 线上没有识字进度时是一张空表，不抛错
+    expect(importOnlineSave({}).learningProgress.literacy.chars).toEqual({});
+    expect(
+      importOnlineSave({ learningProgress: { literacy: 42 } }).learningProgress.literacy.chars,
+    ).toEqual({});
+  });
+
+  it('[IMPORT-12] exchangeRecords 的三种状态映射成两种，rejected 整条丢掉', () => {
+    const result = importOnlineSave({
+      exchangeRecords: [
+        {
+          id: 'r1',
+          rewardId: 'snack',
+          rewardName: '零食一次',
+          medalCost: 2,
+          status: 'approved',
+          requestedAt: '2026-08-11T09:30:00.000Z',
+          resolvedAt: '2026-08-11T10:00:00.000Z',
+        },
+        { id: 'r2', rewardId: 'cartoon', rewardName: '动画片1集', medalCost: 3, status: 'pending' },
+        { id: 'r3', rewardId: 'money', rewardName: '5元零花钱', medalCost: 5, status: 'rejected' },
+      ],
+    });
+
+    // rejected 丢掉：本仓库没有「已取消」这个状态，留着它就是一条永远不会兑现的条目
+    expect(result.redemptions).toEqual([
+      {
+        at: Date.parse('2026-08-11T09:30:00.000Z'),
+        rewardId: 'snack',
+        name: '零食一次',
+        // 线上元素没有 icon（兑换记录页回查 rewardRules），快照里落空串
+        icon: '',
+        medalCost: 2,
+        status: 'done',
+      },
+      { at: 0, rewardId: 'cartoon', name: '动画片1集', icon: '', medalCost: 3, status: 'pending' },
+    ]);
+    // 线上的 id / resolvedAt 都不迁移
+    expect('id' in result.redemptions[0]).toBe(false);
+    expect('resolvedAt' in result.redemptions[0]).toBe(false);
+    expect(importOnlineSave({}).redemptions).toEqual([]);
+  });
+
+  it('[IMPORT-13] lastWeeklyBonusWeek 原样落进同名顶层键，线上无此键时落空串', () => {
+    expect(importOnlineSave({ lastWeeklyBonusWeek: '2026-08-10' }).lastWeeklyBonusWeek).toBe(
+      '2026-08-10',
+    );
+    expect(importOnlineSave({}).lastWeeklyBonusWeek).toBe('');
+    // 线上那份空串（从未发过周奖励）导入后仍是空串
+    expect(importOnlineSave(ONLINE_EXPORT).lastWeeklyBonusWeek).toBe('');
+  });
+
+  it('[IMPORT-14] 线上古诗的三个结构映射成一张 poems 表，weekly 落空水位', () => {
+    const result = importOnlineSave({
+      learningProgress: {
+        guoxue: {
+          // 线上一次写六个到期日，到期判定是 some(d <= today) —— 只有最早那个说话
+          reviewSchedule: {
+            p3: ['2026-08-13', '2026-08-14', '2026-08-16', '2026-08-19'],
+            p4: ['2026-09-11', '2026-08-20'],
+          },
+          masteredPoems: ['p1', 'p2'],
+          learnedPoems: ['p3', 'p5'],
+        },
+      },
+    });
+
+    expect(result.learningProgress.guoxue.poems).toEqual({
+      // 线上的已会背直接认，不打回重熬。step 5 是古诗的顶档（不是识字的 7）
+      p1: { step: 5, due: '', wrong: 0, mastered: true },
+      p2: { step: 5, due: '', wrong: 0, mastered: true },
+      // 有调度的取那六个日期里最早的一个，不是数组里的第一个
+      p3: { step: 0, due: '2026-08-13', wrong: 0, mastered: false },
+      p4: { step: 0, due: '2026-08-20', wrong: 0, mastered: false },
+      // 只在列表里的按「学过、立刻到期」算 —— 空串小于任何日期键
+      p5: { step: 0, due: '', wrong: 0, mastered: false },
+    });
+
+    // weekly 不从线上来：线上的本周三首是每次现算的（floor(天序号/7)*3 % 109），没有字段可搬
+    expect(result.learningProgress.guoxue.weekly).toEqual({ weekKey: '', ids: [] });
+
+    // 线上没有古诗进度时是一张空表，不抛错
+    expect(importOnlineSave({}).learningProgress.guoxue.poems).toEqual({});
+    expect(
+      importOnlineSave({ learningProgress: { guoxue: 42 } }).learningProgress.guoxue.poems,
+    ).toEqual({});
+    // 线上那份空进度（三个结构都是空的）导入后是空表
+    expect(importOnlineSave(ONLINE_EXPORT).learningProgress.guoxue).toEqual({
+      poems: {},
+      weekly: { weekKey: '', ids: [] },
+    });
+  });
+
+  it('[IMPORT-15] 线上数学只接 currentStage，三个次数字段都不接', () => {
+    const result = importOnlineSave({
+      learningProgress: {
+        math: { currentStage: 4, gamesCompleted: 37, stagePlayed: 5, stageCorrect: 3 },
+      },
+    });
+
+    // 只接阶段。三个次数字段数的是「答了几次」，本仓库数的是「答对过哪些题」——
+    // 次数换不出题目，而且线上那三个数可以无限刷（每答一题就 +1、无去重）
+    expect(result.learningProgress.math).toEqual({ rounds: {}, stage: 4 });
+
+    // 越界的 currentStage 由 normalizeSave 夹（1 ~ 6）
+    expect(
+      importOnlineSave({ learningProgress: { math: { currentStage: 99 } } }).learningProgress.math
+        .stage,
+    ).toBe(6);
+
+    // 线上没有数学进度时落默认水位，不抛错
+    expect(importOnlineSave({}).learningProgress.math).toEqual({ rounds: {}, stage: 1 });
+    expect(importOnlineSave({ learningProgress: { math: 42 } }).learningProgress.math).toEqual({
+      rounds: {},
+      stage: 1,
+    });
+    // 线上那份初始进度（currentStage 为 1）导入后仍是第一阶段
+    expect(importOnlineSave(ONLINE_EXPORT).learningProgress.math).toEqual({
+      rounds: {},
+      stage: 1,
+    });
+  });
+
+  it('[IMPORT-16] 线上 parentSettings 三个字段原样映射，两个 PIN 水位都落 0', () => {
+    const result = importOnlineSave({
+      parentSettings: { pin: '9876', dailyGoal: 4, note: '周末不查作业' },
+    });
+
+    expect(result.parent).toEqual({
+      pin: '9876',
+      dailyGoal: 4,
+      note: '周末不查作业',
+      pinFails: 0,
+      pinLockedUntil: 0,
+    });
+
+    // dailyGoal 的上界在本层夹（线上那道 Math.min(12, …) 在设置页里，导入绕得过去）
+    expect(importOnlineSave({ parentSettings: { dailyGoal: 99 } }).parent.dailyGoal).toBe(12);
+
+    // 线上就算写了这两个字段也不接 —— 它们是本仓库的水位，不从别人的存档里来
+    expect(
+      importOnlineSave({ parentSettings: { pinFails: 4, pinLockedUntil: 1e12 } }).parent,
+    ).toEqual({ pin: '1234', dailyGoal: 6, note: '', pinFails: 0, pinLockedUntil: 0 });
+
+    // 线上没有 parentSettings 时整块落默认值，不抛错
+    expect(importOnlineSave({}).parent).toEqual(defaultSave().parent);
+    expect(importOnlineSave({ parentSettings: 42 }).parent).toEqual(defaultSave().parent);
   });
 });

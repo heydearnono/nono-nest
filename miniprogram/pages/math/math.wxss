@@ -1,0 +1,227 @@
+/* 数学页：一屏一道题（居中的大卡）+ 底部一条进度带。
+   与 literacy.wxss 的「一张居中大卡」形状最近 —— 但那边卡上是一个大字，
+   这边卡上有插图、题干、2~3 个选项按钮，公共部分只有圆角与阴影两行。
+   三个页面级样式各自独立仍然是本轮的做法（poem.wxss 头注释里说的「等第三个多卡列表页
+   再评估抽公共层」没有兑现：数学不是多卡列表，是单卡）。 */
+
+.math {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.math__stage {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.math__desc {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+}
+
+.math__count {
+  margin-top: 12rpx;
+  font-size: 28rpx;
+}
+
+.math__done {
+  margin-top: 12rpx;
+  font-size: 28rpx;
+  color: var(--color-primary);
+}
+
+.card {
+  position: relative;
+  margin-top: 32rpx;
+  padding: 40rpx 28rpx;
+  border-radius: 32rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+/* Boss 关金色描边（线上也是这么标的），不额外发货币 —— 只是看得出来这道不一样 */
+.card--boss {
+  border: 4rpx solid #f5c451;
+  box-shadow: 0 4rpx 16rpx rgb(245 196 81 / 28%);
+}
+
+.card__badge {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #d9a013;
+  text-align: center;
+}
+
+.card__title {
+  margin-top: 8rpx;
+  font-size: 30rpx;
+  opacity: 0.6;
+  text-align: center;
+}
+
+.card__q {
+  margin-top: 12rpx;
+  font-size: 40rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* 插图是一串 emoji，字号给得大、允许换行（8 个苹果一行放不下） */
+.art {
+  margin-top: 32rpx;
+  font-size: 56rpx;
+  line-height: 1.5;
+  text-align: center;
+  word-break: break-all;
+}
+
+.sides {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 32rpx;
+}
+
+.side {
+  flex: 1;
+  padding: 24rpx 12rpx;
+  border-radius: 24rpx;
+  background-color: #fdf1f5;
+}
+
+.side__art {
+  font-size: 44rpx;
+  line-height: 1.4;
+  text-align: center;
+  word-break: break-all;
+}
+
+.side__label {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+  text-align: center;
+}
+
+.seq {
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+  margin-top: 32rpx;
+}
+
+.seq__item {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  background-color: #fdf1f5;
+  font-size: 36rpx;
+  font-weight: 700;
+  line-height: 72rpx;
+  text-align: center;
+}
+
+.opts {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-top: 40rpx;
+}
+
+/* 5 岁的手指要够大的靶（vision.md「什么算好」第 3 条）。竖排而不是横排：
+   选项是「1,2,3」这种长文案，横排三个会挤成两行字 */
+.opt {
+  padding: 32rpx 0;
+  border-radius: 40rpx;
+  background: linear-gradient(135deg, #ffb0c8 0%, #ff8fb1 100%);
+  box-shadow: 0 6rpx 16rpx rgb(255 143 177 / 24%);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}
+
+.opt--hover {
+  transform: scale(0.97);
+}
+
+.fb {
+  margin-top: 28rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+.fb--yes {
+  color: #3f9e6a;
+}
+
+/* 答错那句不是红色的报错色：它照样打卡照样发星光（MATH-23） */
+.fb--no {
+  color: #d98324;
+}
+
+.bar {
+  margin-top: 48rpx;
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 20rpx;
+}
+
+.dot {
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 999rpx;
+}
+
+.dot--yes {
+  background-color: #7cc79b;
+}
+
+.dot--no {
+  background-color: #f0b46a;
+}
+
+.dot--none {
+  background-color: #ecd9e1;
+}
+
+.caps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 24rpx;
+}
+
+.cap {
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  background-color: #f4eef1;
+  font-size: 22rpx;
+  opacity: 0.5;
+}
+
+/* 走过的阶段与当前阶段都亮着：六个胶囊是「走到哪儿了」的地图 */
+.cap--done {
+  background-color: #e8f7ee;
+  color: #3f9e6a;
+  opacity: 1;
+}
+
+.cap--on {
+  background: linear-gradient(135deg, #ffb0c8 0%, #ff8fb1 100%);
+  color: #fff;
+  opacity: 1;
+}
+
+.empty {
+  padding: 120rpx 0;
+  font-size: 32rpx;
+  opacity: 0.6;
+  text-align: center;
+}

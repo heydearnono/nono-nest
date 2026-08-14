@@ -1,0 +1,52 @@
+<!-- 识字：顶部两个数 + 两个 tab + 一张卡 + 两个按钮。队列与 emoji 都来自 literacyState -->
+<view class="lit" wx:if="{{state}}">
+  <view class="lit__top">
+    <view class="lit__today">今日新字 {{state.todayNew}}/{{state.dailyNew}}</view>
+    <!-- 两个数各有读者：「学过」天天涨给孩子看，「已掌握」很慢给家长看 -->
+    <view class="lit__sum">学过 {{state.learned}} 字 · 已掌握 {{state.mastered}} 字</view>
+  </view>
+
+  <view class="tabs">
+    <view
+      class="tabs__item {{tab === 'new' ? 'tabs__item--on' : ''}}"
+      data-tab="new"
+      bindtap="onSwitchTab"
+      hover-class="tabs__item--hover"
+    >
+      🆕 新字 ({{state.newChars.length}})
+    </view>
+    <view
+      class="tabs__item {{tab === 'review' ? 'tabs__item--on' : ''}}"
+      data-tab="review"
+      bindtap="onSwitchTab"
+      hover-class="tabs__item--hover"
+    >
+      🔄 复习 ({{state.reviewChars.length}})
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{card}}">
+    <text class="card__emoji">{{card.emoji}}</text>
+    <view class="card__char">{{card.char}}</view>
+    <view class="card__pinyin">{{card.pinyin}}</view>
+    <!-- 组词与例句一半的字没有（1111 / 1107 条），缺就不占位，不给占位符 -->
+    <view class="card__words" wx:if="{{card.words.length}}">
+      <text class="card__word" wx:for="{{card.words}}" wx:key="*this">{{item}}</text>
+    </view>
+    <view class="card__sentence" wx:if="{{card.sentence}}">{{card.sentence}}</view>
+  </view>
+
+  <view class="empty" wx:elif="{{allDone}}">今天的字都认完啦 🎉</view>
+  <view class="empty" wx:else>这一栏今天空着，去另一栏看看 👀</view>
+
+  <view class="acts" wx:if="{{card}}">
+    <view class="act act--yes" data-known="1" bindtap="onGrade" hover-class="act--hover">
+      我认识 ✅
+    </view>
+    <view class="act act--no" data-known="0" bindtap="onGrade" hover-class="act--hover">
+      还不太会 🔄
+    </view>
+  </view>
+
+  <view class="lit__done" wx:if="{{state.done}}">今天的识字打卡完成啦 ✅</view>
+</view>

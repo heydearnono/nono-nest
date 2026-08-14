@@ -31,8 +31,13 @@
 
 .purse {
   display: flex;
+  align-items: center;
   gap: 16rpx;
   margin-top: 20rpx;
+}
+
+.purse--hover {
+  transform: scale(0.98);
 }
 
 .purse__item {
@@ -42,6 +47,14 @@
   box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
   font-size: 28rpx;
   font-weight: 600;
+}
+
+/* 四种货币挤满一行之后，这句是那个「还能往下走」的提示，不做成独立按钮：
+   整条带子都可点，靶子比一个小按钮大得多 */
+.purse__more {
+  margin-left: auto;
+  font-size: 24rpx;
+  color: var(--color-primary);
 }
 
 .grid {

@@ -1,0 +1,98 @@
+<!-- 国学：顶部两个分母 + 本周三首 + 到期复习。两个列表与 dueToday 都来自 poemState -->
+<view class="poem" wx:if="{{state}}">
+  <view class="poem__top">
+    <view class="poem__count"
+      >必背 {{state.required.learned}}/{{state.required.total}} · 拓展
+      {{state.extended.learned}}/{{state.extended.total}}</view
+    >
+    <!-- 「会背」很慢（一首要熬 26 天），是给家长看的那个数 -->
+    <view class="poem__sum">会背 {{mastered}} 首</view>
+  </view>
+
+  <view class="poem__done" wx:if="{{state.done}}">今天的国学打卡完成啦 ✅</view>
+
+  <view class="empty" wx:if="{{allDone}}">这周的诗都学过啦 🎉</view>
+
+  <block wx:if="{{state.weekly.length}}">
+    <view class="sect">本周三首</view>
+    <view class="card" wx:for="{{state.weekly}}" wx:key="id">
+      <view class="card__head">
+        <view class="card__title">{{item.title}}</view>
+        <!-- 朝代不拼「X 代」：线上那样拼会出现「古代代佚名」「先秦代诗经」 -->
+        <view class="card__by">{{item.dynasty}} · {{item.author}}</view>
+      </view>
+      <view class="tags">
+        <text class="tag">{{item.gradeLabel}}</text>
+        <text class="tag">{{item.tierLabel}}</text>
+        <text class="tag tag--on" wx:if="{{item.learned}}">学过 ✅</text>
+        <text class="tag tag--due" wx:if="{{item.dueToday}}">该复习啦</text>
+      </view>
+      <view class="lines">
+        <view class="line" wx:for="{{item.content}}" wx:for-item="line" wx:key="*this"
+          >{{line}}</view
+        >
+      </view>
+      <view class="acts">
+        <view
+          class="act act--yes"
+          data-id="{{item.id}}"
+          data-recited="1"
+          bindtap="onStudy"
+          hover-class="act--hover"
+        >
+          ✨ 已会背
+        </view>
+        <view
+          class="act act--no"
+          data-id="{{item.id}}"
+          data-recited="0"
+          bindtap="onStudy"
+          hover-class="act--hover"
+        >
+          😅 还没背下来
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 没有到期的诗时整段不出现，不留一个空标题 -->
+  <block wx:if="{{state.reviews.length}}">
+    <view class="sect">到期复习</view>
+    <view class="card" wx:for="{{state.reviews}}" wx:key="id">
+      <view class="card__head">
+        <view class="card__title">{{item.title}}</view>
+        <view class="card__by">{{item.dynasty}} · {{item.author}}</view>
+      </view>
+      <view class="tags">
+        <text class="tag">{{item.gradeLabel}}</text>
+        <text class="tag">{{item.tierLabel}}</text>
+        <text class="tag tag--due">该复习啦</text>
+      </view>
+      <view class="lines">
+        <view class="line" wx:for="{{item.content}}" wx:for-item="line" wx:key="*this"
+          >{{line}}</view
+        >
+      </view>
+      <view class="acts">
+        <view
+          class="act act--yes"
+          data-id="{{item.id}}"
+          data-recited="1"
+          bindtap="onStudy"
+          hover-class="act--hover"
+        >
+          ✨ 已会背
+        </view>
+        <view
+          class="act act--no"
+          data-id="{{item.id}}"
+          data-recited="0"
+          bindtap="onStudy"
+          hover-class="act--hover"
+        >
+          😅 还没背下来
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

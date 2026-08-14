@@ -3,3 +3,6 @@ miniprogram_npm/
 coverage/
 dist/
 *.log
+
+# 线上 bundle 的逆向工作区：别人的 minified 产物，不按本仓库的风格定型
+.scratch/

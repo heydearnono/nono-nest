@@ -2,7 +2,8 @@
 
 - 区名：`POINT`（星光 / 宝石 / 宠物粮 / 勋章的产出与消耗）
 - 模块：`miniprogram/utils/point.js`
-- 状态：已完成（见 `summary.md`）
+- 状态：已完成（见 `summary.md`）。P3-b 追加了今日全勤与周奖励
+  （`POINT-20` ~ `POINT-31`），并把私有的 `post` 导出成 `postLedger`
 - 关联愿景：`docs/vision.md` P3
 
 ## 背景
@@ -118,6 +119,66 @@ if (next === save) return save; // check 已打过卡时原样返回，说明什
 `pages/home/` 顶部加一条货币带：`⭐ n` `🍖 n`。打卡后 `wx.showToast` 提示
 `太棒啦！+1⭐`。宝石与勋章暂不显示 —— 打卡产不出它们，显示恒为 0 的数字是噪音。
 
+**P3-b 起四种全显示**（`⭐ 🍖 🏅 💎`）：今日全勤与成就产出勋章、周奖励产出宝石，
+两者不再恒为 0。详见 `docs/features/reward/doc.md`。
+
+### 今日全勤与周奖励：两处新的货币产出（P3-b）
+
+P3-a 的「范围外」第 1 条把它们推给了 P5 / P6 之后。核心打卡项现在全都有入口，
+本节补上。**判定与结算的编排在 `docs/features/reward/doc.md` 的 `settleDay`**，
+本区只定义这两笔产出本身的数额、去重水位与流水文案。
+
+```js
+WEEKLY_BONUS = { star: 5, gem: 1, minDays: 5 }
+
+listCore(save)                       -> habit[] // 启用中的核心项（core 为真）
+coreDone(save, key)                  -> number  // 当天完成了几条核心项
+isQualifiedDay(save, key)            -> boolean // 达标日：完成 ≥ minDays 条
+awardAllDone(save, key, now)         -> save    // 今日全勤，水位 bonuses.allDone
+awardWeeklyBonus(save, key, now)     -> save    // 周奖励，水位 lastWeeklyBonusWeek
+```
+
+| 项       | 规则                                                                               |
+| -------- | ---------------------------------------------------------------------------------- |
+| 今日全勤 | 当天核心项全部完成 → `+1🏅`，流水 `今日全勤`，去重水位 `days[key].bonuses.allDone` |
+| 达标日   | 当天核心项完成 ≥ 5 条（分母是**启用中的**核心项）                                  |
+| 周奖励   | 本周七天里达标 ≥ 5 天 → `+5⭐ +1💎`，流水 `本周打卡 5 天达标`                      |
+| 周去重   | 顶层键 `lastWeeklyBonusWeek` 存 `weekKeys(now)[0]`（`SAVE-14`）                    |
+
+**核心项名单落在任务自己的 `core` 字段上**，不是 `utils/` 里的独立数组 ——
+线上 `rr` 与 `tasks` 各存一份，家长删掉 `poop` 之后全勤永久不可能达成。
+这与本区「读任务自身的 `starReward` 而不查 `pointRules`」是同一条判断。
+名单为什么是七条（去掉了线上的 `bath`）见 `docs/features/reward/doc.md`。
+
+**`isQualifiedDay` 是导出的**：`full-week` 成就要用同一个函数（见 `ACHV-09`）。
+`listCore` / `coreDone` 也导出，页面顶部要显示「本周达标 N/5 天」。
+`awardAllDone` 与 `awardWeeklyBonus` 各自看自己的水位，重复调用原样返回入参 ——
+`settleDay` 因此可以每次打卡都调一遍。
+
+**分母跟着启用状态变**：家长停用某条核心项时它不计入，剩下几条打满即全勤
+（与 `dayProgress` 同一条）。七条全被停用时**不算全勤** —— 否则空存档天天全勤。
+
+**全勤后取消一项打卡，勋章不退、水位不清。** 与「取消打卡不收回宠物经验」同一条，
+也是「温和，不惩罚」的直接推论。代价是当天「打满 → 取消 → 再打满」只发一次勋章，
+而这正是 `bonuses.allDone` 这个水位存在的理由。
+
+**达标日的判据只有一个函数**，周奖励与 `full-week` 成就共用它。线上那两套口径
+（核心项 5/8 与「自律 + 学习的 60%」）算同一件事却能给出不同答案。
+
+### `post` 导出成 `postLedger`（P3-b）
+
+```js
+postLedger(save, key, type, amount, reason, now) -> save
+```
+
+P3-b 新增四处货币变动（全勤、周奖励、成就解锁、兑换），都不在本模块里。
+导出一个「原始」函数看着比 `checkAndAward` 那种成对封装弱，但它换来一条更强的不变式：
+**`save.currency` 只可能被 `point.js` 改**，而它每次改都追加一条流水。
+四处各自 `{ ...save, currency }` 才是真的危险 —— 那会让账与余额悄悄分叉。
+
+内部实现一行不改，`checkAndAward` / `uncheckAndRefund` 仍走同一个函数，
+所以 `POINT-01` ~ `POINT-19` 全部不受影响。
+
 ## 行为规格
 
 ### 发放
@@ -154,20 +215,43 @@ if (next === save) return save; // check 已打过卡时原样返回，说明什
 | POINT-18 | 打了两项 `habit` 后 `dayEarned`   | `{ star: 2, gem: 0, petFood: 2, medal: 0 }` |
 | POINT-19 | `dayEarned` 传另一天的键          | 不把别的日期的流水算进来                    |
 
+### 今日全勤与周奖励（P3-b）
+
+| Spec ID  | 输入                                                | 期望输出                                                               |
+| -------- | --------------------------------------------------- | ---------------------------------------------------------------------- |
+| POINT-20 | 七条核心项全部打上后结算                            | `medal` +1，流水追加 `{ type: 'earn', medal: 1, reason: '今日全勤' }`  |
+| POINT-21 | 同上                                                | `days[key].bonuses.allDone` 为 `true`                                  |
+| POINT-22 | 只打上六条核心项后结算                              | 不发勋章、无流水、`bonuses` 不产生                                     |
+| POINT-23 | 已全勤后再结算一次                                  | 原样返回入参（水位挡住），勋章仍只 +1                                  |
+| POINT-24 | 全勤后取消一项打卡，再结算                          | 勋章不退、`bonuses.allDone` 仍为 `true`；重新打满不再发第二枚          |
+| POINT-25 | `poop` 被家长停用（`enabled: false`）时打满其余六条 | 算全勤（分母跟着启用状态变）                                           |
+| POINT-26 | 七条核心项全被停用                                  | **不算**全勤，不发勋章                                                 |
+| POINT-27 | 打上九条非核心项（`brush-pm` `dress` …）            | 不算全勤 —— 判据是核心项，不是「全部打卡项」                           |
+| POINT-28 | 本周五天达标后结算                                  | `star` +5、`gem` +1，流水 `本周打卡 5 天达标`                          |
+| POINT-29 | 同上                                                | `lastWeeklyBonusWeek` 为 `weekKeys(now)[0]`（本周周一的日期键）        |
+| POINT-30 | 某天核心项只完成四条                                | 那天不算达标日；本周达标四天时不发周奖励                               |
+| POINT-31 | 本周已发过周奖励后再结算                            | 原样返回（`lastWeeklyBonusWeek === 本周周键`）；跨到下周一后可再发一次 |
+
+`POINT-24` 与 `POINT-31` 是两个水位各自的规格：一个在 `days[key].bonuses`（按天），
+一个在顶层 `lastWeeklyBonusWeek`（按周）。两者都写成「原样返回」而不是「不变」——
+断言的是对象同一性，页面靠它决定不落盘。
+
+`POINT-27` 挡住一个容易写错的方向：`dayProgress` 数的是 `category === 'habit'` 的九条，
+全勤数的是跨三个 category 的七条 `core`，两者没有包含关系。
+
 ## 范围外
 
-- **不做今日全勤（`allDone`）与周奖励。** 两者都要求 8 条核心 id 里凑够 5 条以上
-  （`brush-am` `wake` `literacy` `reading` `exercise` `vegetables` `poop` `bath`），
-  其中 `literacy` / `reading` 要 P5 的学习页、`exercise` 等要 P6 的健康页才可能被打上。
-  现在实现它们等于写一段在 P5 / P6 之前**不可能被触发**的代码，违反
-  `AGENTS.md` 第 5 节第 4 条。等这两个页面落地后一起做，届时还要加「周」的键。
-  这也意味着 **P3-a 阶段勋章恒为 0**，兑换（`REWARD`）因此还换不了东西。
+- ~~**不做今日全勤（`allDone`）与周奖励。**~~ **P3-b 已做**（`POINT-20` ~ `POINT-31`）。
+  原先的理由是：两者都要求核心 id 里凑够 5 条以上，其中 `literacy` / `reading` 要 P5 的学习页、
+  `exercise` 等要 P6 的健康页才可能被打上，那时实现它们等于写一段不可能被触发的代码
+  （`AGENTS.md` 第 5 节第 4 条）。P5 / P6 落地后核心 id 全都有了入口，这条限制随之解除。
+  名单从线上的八条收敛成七条（去掉 `bath`），理由见 `docs/features/reward/doc.md`。
 - **不做宠物经验与心情。** 线上打卡同时 `exp += 5`、`happiness + 1`（上限 5），
   升级阈值 `petLevel × 100`。那是 `PET` / `MOOD` 区的规则，P4 做。
   `checkAndAward` 现在**不碰 `save.pet`** —— P4 接的时候在 `point.js` 之外包一层，
   不要把升级循环塞进发放函数。
-- **不做兑换与成就。** `REWARD`（兑换流程与状态流转）、`ACHV`（成就判定）各自成区。
-  勋章的**消耗**路径在 `REWARD`，本 feature 只定义勋章字段在流水里怎么记。
+- ~~**不做兑换与成就。**~~ **P3-b 已做**，在 `docs/features/reward/doc.md`（`REWARD` / `ACHV` 两区）。
+  本区仍只定义勋章在流水里怎么记与两处产出的数额；兑换的状态流转、成就的十一条判据不在这里。
 - **不做流水的界面。** 首页只显示货币余额与一句 toast。完整流水列表（家长端每日报告）
   在 `PARENT`（P7）。
 - **不做 `pointRules` 的导入。** 见上文「一个已知的导入后果」。

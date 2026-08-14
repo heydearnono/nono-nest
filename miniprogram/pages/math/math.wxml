@@ -1,0 +1,71 @@
+<!-- 数学：顶部阶段进度 + 一道题 + 底部三个圆点与六个阶段胶囊。
+     一次只显示一道题（card），三道都答过时整段换成空态 -->
+<view class="math" wx:if="{{state}}">
+  <view class="math__top">
+    <view class="math__stage">阶段 {{state.stage.stage}}/6 · {{state.stage.name}}</view>
+    <view class="math__desc">{{state.stage.desc}}</view>
+    <view class="math__count"
+      >本阶段 {{state.stage.cleared}}/{{state.stage.total}} · 今天 {{state.todayCount}}/3</view
+    >
+    <view class="math__done" wx:if="{{state.done}}">今天的数学打卡完成啦 ✅</view>
+  </view>
+
+  <view class="empty" wx:if="{{card === null}}">今天的三道题都做完啦 🎉</view>
+
+  <view class="card {{card.isBoss ? 'card--boss' : ''}}" wx:if="{{card}}">
+    <view class="card__badge" wx:if="{{card.isBoss}}">👑 Boss 关</view>
+    <view class="card__title">{{card.title}}</view>
+    <view class="card__q">{{card.question}}</view>
+
+    <!-- count：画 target 个 items（拼串在 math.js 里做，WXML 写不了 repeat） -->
+    <view class="art" wx:if="{{figure.art}}">{{figure.art}}</view>
+
+    <!-- compare：两边各画一排，标签用数据里的 label（「左边」/「右边」） -->
+    <view class="sides" wx:if="{{figure.left}}">
+      <view class="side">
+        <view class="side__art">{{figure.left.art}}</view>
+        <view class="side__label">{{figure.left.label}}</view>
+      </view>
+      <view class="side">
+        <view class="side__art">{{figure.right.art}}</view>
+        <view class="side__label">{{figure.right.label}}</view>
+      </view>
+    </view>
+
+    <!-- sort：把 sequence 排开，孩子照着这排数字选顺序 -->
+    <view class="seq" wx:if="{{figure.sequence.length}}">
+      <text class="seq__item" wx:for="{{figure.sequence}}" wx:key="*this">{{item}}</text>
+    </view>
+
+    <!-- 五种题型的选项按钮一样大、一样是渐变色：答错不是惩罚，没有灰色的否定按钮 -->
+    <view class="opts">
+      <view
+        class="opt"
+        wx:for="{{card.options}}"
+        wx:key="index"
+        data-index="{{index}}"
+        bindtap="onTapOption"
+        hover-class="opt--hover"
+      >
+        {{item}}
+      </view>
+    </view>
+
+    <!-- 反馈盖在选项下方停 1.5 秒。「再试一次哦～」是明天再见的意思，
+         这一次已经落盘、已经算答过了 -->
+    <view class="fb {{feedback.ok ? 'fb--yes' : 'fb--no'}}" wx:if="{{feedback}}"
+      >{{feedback.text}}</view
+    >
+  </view>
+
+  <view class="bar">
+    <view class="dots">
+      <view class="dot dot--{{item}}" wx:for="{{dots}}" wx:key="index"></view>
+    </view>
+    <view class="caps">
+      <text class="cap cap--{{item.state}}" wx:for="{{capsules}}" wx:key="stage"
+        >{{item.name}}</text
+      >
+    </view>
+  </view>
+</view>

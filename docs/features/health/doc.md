@@ -2,7 +2,7 @@
 
 - 区名：`HEALTH`（当天健康记录与其中四项的打卡发放）
 - 模块：`miniprogram/utils/health.js`、`miniprogram/pages/health/`
-- 状态：设计中（本轮 P6 全部做完，健康域没有第二段）
+- 状态：已完成（见 `summary.md`）。P6 一轮做完，健康域没有第二段
 - 关联愿景：`docs/vision.md` P6
 
 ## 背景

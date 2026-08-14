@@ -2,7 +2,8 @@
 
 - 区名：`PET`（喂食、经验、等级、形象）、`FULLNESS`（饱腹度衰减）、`MOOD`（开心度）
 - 模块：`miniprogram/utils/pet.js`、`miniprogram/data/petTypes.js`、`miniprogram/pages/pet/`
-- 状态：已完成（见 `summary.md`）
+- 状态：已完成（见 `summary.md`）。P3-b 把奖励结算挂进了 `checkAwardAndGrow`
+  （规格 `REWARD-13`，在 `docs/features/reward/doc.md`）
 - 关联愿景：`docs/vision.md` P4
 
 ## 背景
@@ -94,6 +95,17 @@ checkAwardAndGrow(save, dayKey, habitId, now, gainedExp?) -> save  // 打卡 + �
 所以下面的 `PET-15` / `MOOD-01` / `MOOD-04` 断言的仍是 5。
 
 依赖方向 `pet.js → point.js → habit.js → data/`，无环。
+P3-b 在中间插了一层：`pet.js → reward.js → point.js → habit.js → dayKey.js`，仍无环
+（`reward.js` 不 import `pet.js`，`pet-5` 成就直接读 `save.pet.petLevel`）。
+
+**P3-b 起 `checkAwardAndGrow` 里还会结算奖励**（今日全勤、周奖励、成就解锁），
+所以它是「打卡之后该发生的全部事情」的唯一入口 —— 名字比它做的事窄了一点，不改名
+（P4 加宠物经验时是同一次扩张）。理由与本区「包在外面而不是改 `checkAndAward`」
+逐字相同：留给页面多步走意味着页面可以只做一步，于是「打满七条就有勋章」
+没有任何东西保证它。规格是 `REWARD-13`，声明在 `docs/features/reward/doc.md`，
+本区不重复 —— 那条规则属于奖励域，`pet.js` 只是它的挂载点。
+`PET-15` / `PET-16` / `MOOD-01` 的断言不受影响：单打一项核心任务凑不满七条，
+不会触发结算。
 
 **`checkAwardAndGrow` 包在 `point.js` 外面，不改 `checkAndAward`。**
 这是 `docs/features/point/summary.md` 留下的约束：升级是个 `while` 循环，

@@ -10,6 +10,12 @@
  * 在本仓库是 `starReward` / `petFoodReward`。线上的 `subCategory` 与 `module`
  * 逐条取值相同且只有 `module` 被读，是死字段，不转抄。
  *
+ * `core` 是**线上没有的字段**（线上是 utils 里一个平行的 id 数组），P3-b 加进来给
+ * 今日全勤做名单：七条为 `true`（`wake` `brush-am` `literacy` `reading` `exercise`
+ * `vegetables` `poop`）。名单**不含 `bath`** —— 它是唯一的 weekly、周目标 3 次，
+ * 按天要求它就和它自己的定义打架。理由与线上那份名单的毛病都写在
+ * docs/features/reward/doc.md 里。
+ *
  * 本文件是常量区（AGENTS.md 第 3 节）：零函数、零判断、零计算。
  */
 export const DEFAULT_HABITS = [
@@ -24,6 +30,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 1,
+    core: true,
   },
   {
     id: 'brush-am',
@@ -36,6 +43,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 2,
+    core: true,
   },
   {
     id: 'brush-pm',
@@ -48,6 +56,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 3,
+    core: false,
   },
   {
     id: 'dress',
@@ -60,6 +69,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 4,
+    core: false,
   },
   {
     id: 'toys',
@@ -72,6 +82,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 5,
+    core: false,
   },
   {
     id: 'room',
@@ -84,6 +95,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 6,
+    core: false,
   },
   {
     id: 'desk',
@@ -96,6 +108,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 7,
+    core: false,
   },
   {
     id: 'bag',
@@ -108,6 +121,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 8,
+    core: false,
   },
   {
     id: 'sleep',
@@ -120,6 +134,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 9,
+    core: false,
   },
   {
     id: 'literacy',
@@ -133,6 +148,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 10,
+    core: true,
   },
   {
     id: 'reading',
@@ -146,6 +162,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 11,
+    core: true,
   },
   {
     id: 'guoxue',
@@ -159,6 +176,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 12,
+    core: false,
   },
   {
     id: 'math',
@@ -172,6 +190,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 13,
+    core: false,
   },
   {
     id: 'english',
@@ -185,6 +204,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 14,
+    core: false,
   },
   {
     id: 'exercise',
@@ -197,6 +217,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 15,
+    core: true,
   },
   {
     id: 'vegetables',
@@ -209,6 +230,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 16,
+    core: true,
   },
   {
     id: 'poop',
@@ -221,6 +243,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 17,
+    core: true,
   },
   {
     // 唯一一条 weekly：线上的周目标是 3 次，P2 先按日常项记，见 doc.md「范围外」
@@ -235,5 +258,7 @@ export const DEFAULT_HABITS = [
     needsParentConfirm: false,
     enabled: true,
     sortOrder: 18,
+    // 唯一一条 core: false 的 health —— 周目标 3 次的任务不该按天要求，见 features/reward
+    core: false,
   },
 ];

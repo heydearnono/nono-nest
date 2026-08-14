@@ -57,6 +57,7 @@ nono 线上已有的打卡记录是按这些 id 存的，改 id 等于丢历史�
   needsParentConfirm: false,  // 家长端确认，P7 才读
   enabled: true,              // 家长可停用，停用后不出现在首页
   sortOrder: 1,               // 家长端排序依据，1 起连续
+  core: true,                 // 是否计入今日全勤，P3-b 追加，见 features/point
   module: 'literacy',         // 仅 learning：指向学习子页，P5 才读
 }
 ```
@@ -65,6 +66,14 @@ nono 线上已有的打卡记录是按这些 id 存的，改 id 等于丢历史�
 `starReward` / `petFoodReward`（`star` / `petFood` 是规范名）。
 线上的 `subCategory` 与 `module` 对每条 learning 任务取值完全相同，且线上只读 `module`
 —— `subCategory` 是死字段，**不抄**。
+
+`core` 是**线上没有的字段**，P3-b 加进来给今日全勤做名单：七条为 `true`
+（`wake` `brush-am` `literacy` `reading` `exercise` `vegetables` `poop`），其余为 `false`。
+线上把名单存成一个与 `tasks` 平行的独立数组 `rr`，家长删掉 `poop` 之后 `rr` 里还有它，
+全勤于是永久不可能达成。写成任务自己的字段之后，「哪些算核心」与「这条还在不在、
+还启用不启用」是同一份数据。名单为什么不含线上的 `bath` 见
+`docs/features/reward/doc.md`；判定与发放在 `docs/features/point/doc.md`（`POINT-20` ~ `POINT-31`），
+本区只保证字段存在。
 
 ### 当天记录（`days[dayKey]`）
 
@@ -83,7 +92,8 @@ nono 线上已有的打卡记录是按这些 id 存的，改 id 等于丢历史�
 
 `days[dayKey]` 后面还会长出 `ledger`（`POINT`）、`health`（`HEALTH`）等兄弟键。
 本层只写 `checks`，其它键由各自 feature 增补，`normalizeSave` 对 `days` 是整体透传，
-不会因为多出键而丢数据。
+不会因为多出键而丢数据。P3-b 又加了第五个兄弟键 `bonuses`（`{ allDone: true }`，
+今日全勤的去重水位，见 `docs/features/point/doc.md`）。
 
 ### `utils/habit.js` 的八个纯函数
 
@@ -188,9 +198,10 @@ storage 键名 `nono-save`，单条记录存整份存档（与线上 IndexedDB �
   P3 已落地：读取点是 `miniprogram/utils/point.js` 的 `checkAndAward` /
   `uncheckAndRefund`，本区的 `check` / `uncheck` 仍然只写 `checks`
   （见 `docs/features/point/doc.md`）。
-- **不做今日全勤（`allDone`）与周奖励。** 线上的全勤只看 8 条特定 id
-  （`brush-am` `wake` `literacy` `reading` `exercise` `vegetables` `poop` `bath`，
-  跨三个 category），奖 1 枚勋章 —— 那是 `POINT` 区的规则，不在 `HABIT`。
+- ~~**不做今日全勤（`allDone`）与周奖励。**~~ P3-b 已做：判定与发放在
+  `docs/features/point/doc.md`（`POINT-20` ~ `POINT-31`），名单是任务自己的 `core` 字段
+  且收敛成**七条**（去掉了线上的 `bath`，理由见 `docs/features/reward/doc.md`）。
+  本区只保证 `core` 字段存在，不写判定。
 - **不做家长端增删改任务。** `enabled` / `sortOrder` / `needsParentConfirm` 三个字段
   P2 只读不写，写入路径在 `PARENT`（P7）。
 - **不做 `frequency: 'weekly'` 的周目标计数。** `bath` 的 `weeklyTarget: 3` 先存着不用，

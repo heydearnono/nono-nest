@@ -3,7 +3,9 @@
 - 区名：`LEARN`（学习入口页与五个子模块共用的打卡路径）、`READ`（阅读）、`ENG`（英语）
 - 模块：`miniprogram/utils/learning.js`、`miniprogram/data/learningModules.js`、
   `miniprogram/pages/learning/`、`miniprogram/pages/reading/`、`miniprogram/pages/english/`
-- 状态：本轮（阅读 + 英语）已完成，识字 / 国学 / 数学未开始
+- 状态：本轮（阅读 + 英语）已完成；识字随后在 `docs/features/literacy/doc.md` 那一轮做完，
+  国学在 `docs/features/poem/doc.md` 那一轮做完，数学在 `docs/features/math/doc.md`
+  那一轮做完 —— 五格全亮，入口页再没有灰格子
 - 关联愿景：`docs/vision.md` P5（本轮只做五个子模块里的两个）
 
 ## 背景
@@ -114,7 +116,10 @@ days['2026-08-12'] = {
 那是一份转抄的既有资产，改它要连带改 P7 家长端将来的编辑面。）
 
 `page` 是空字符串时表示「这一格还没做」—— 入口页把它渲染成灰的，点了给一句「还在做」。
-识字 / 国学 / 数学三条现在都是空串，做完各自的 feature 时填上。
+本轮结束时识字 / 国学 / 数学三条都是空串，做完各自的 feature 时填上
+（识字在 P5 第二轮填成 `pages/literacy/literacy`，国学在 P5 第三轮填成
+`pages/poem/poem`，数学在 P5 第四轮填成 `pages/math/math` ——
+**五条 `page` 至此全都不是空串了**，这段散文与它描述的那个灰格子一起作废，留着当记录）。
 
 用一个 `page` 字段同时表达「跳哪里」与「做没做」，而不是再加一个 `ready` 布尔值：
 两个字段会出现「`ready: true` 但 `page` 是空串」的第三种状态，而它没有意义。
@@ -205,12 +210,12 @@ checkAwardAndGrow(save, dayKey, habitId, now, gainedExp = EXP_PER_CHECK) -> save
 | Spec ID  | 输入                                          | 期望输出                                                                           |
 | -------- | --------------------------------------------- | ---------------------------------------------------------------------------------- |
 | LEARN-01 | `listLearning(save, dayKey)`                  | 5 条，顺序 识字 / 阅读 / 国学 / 数学 / 英语（`sortOrder` 10–14）                   |
-| LEARN-02 | 同上                                          | 阅读与英语 `ready` 为 `true`，识字 / 国学 / 数学为 `false`                         |
+| LEARN-02 | 同上                                          | 五格 `ready` 全为 `true`（改到第四次，这是最后一次 —— 五条 `page` 都填上了）       |
 | LEARN-03 | 阅读打过卡后 `listLearning`                   | 阅读那条 `done` 为 `true`，汇总为 `{ done: 1, total: 5 }`                          |
 | LEARN-04 | `completeLearning` 传未登记的 `module`        | 抛 `RangeError`                                                                    |
 | LEARN-05 | `completeLearning` 的 `now` 非有限数          | 抛 `TypeError`                                                                     |
 | LEARN-06 | 同一 `module` 连续两次 `completeLearning`     | 第二次原样返回（同一性），货币 / 流水 / 经验 / 记录都不再变                        |
-| LEARN-07 | 完成阅读打卡                                  | `star` +2、`petFood` +2，流水一条 `earn`，`reason` 为 `学习：阅读`                 |
+| LEARN-07 | 完成阅读打卡                                  | `star` +2、`petFood` +2，流水一条 `earn`，`reason` 为 `完成：阅读`                 |
 | LEARN-08 | 同上                                          | `petExp` +8（不是自律打卡的 5），`mood` +1                                         |
 | LEARN-09 | `completeLearning` 后检查入参 `save`          | 未被改动（返回的是新对象）                                                         |
 | LEARN-10 | 完成阅读打卡后看 `days[dayKey]`               | `checks` / `ledger` / `learning` 三个兄弟键同时存在，互不覆盖                      |
@@ -257,14 +262,15 @@ checkAwardAndGrow(save, dayKey, habitId, now, gainedExp = EXP_PER_CHECK) -> save
 
 ## 范围外
 
-- **不做识字 / 国学 / 数学三个子页。** 入口页给它们留了灰格子（`page` 为空串）。
-  识字与古诗要先把 2000 字 / 169 首搬进 `data/` 并移植复习调度，数学要 30 道题与六阶段
-  升阶规则，各自一轮。
-- **不做 `learningProgress` 顶层键。** 线上那五个子对象里，与阅读 / 英语相关的三个字段
+- ~~**不做识字 / 国学 / 数学三个子页。**~~ 识字在 P5 第二轮做完
+  （`docs/features/literacy/doc.md`），国学在 P5 第三轮做完（`docs/features/poem/doc.md`），
+  数学在 P5 第四轮做完（`docs/features/math/doc.md`）—— 三格都做完，这条整条作废。
+- ~~**不做 `learningProgress` 顶层键。**~~ P5 识字接进了 `literacy` 子键、
+  P5 古诗接进了 `guoxue` 子键、P5 数学接进了 `math` 子键
+  （`SAVE-13` / `SAVE-17` / `SAVE-18`）—— 这个顶层键至此满了。
+  与阅读 / 英语相关的三个字段
   （`english.streak`、`reading.totalMinutes`、`reading.books`）**在线上就是死字段**，
-  搬过来只会在本仓库也变成死字段。识字 / 国学 / 数学的复习调度确实需要跨天的累计状态，
-  届时由它们各自的 feature 定义存档结构并扩 `IMPORT` 映射表
-  （`docs/features/storage/doc.md` 已经把这条留成了空位）。
+  仍然不搬 —— 搬过来只会在本仓库也变成死字段。这是这条里唯一还成立的部分。
 - **不做累计文案。** 入口页每格只显示「今天做了没有」，不显示「累计 N 分钟」/「连续 N 天」
   —— 数据源不存在（见上一条）。
 - **不做书籍封面。** 见上文的取舍。

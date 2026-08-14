@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import { weekKeys } from '../miniprogram/utils/dayKey.js';
 import { seedHabits } from '../miniprogram/utils/habit.js';
 import {
+  awardAllDone,
+  awardWeeklyBonus,
   checkAndAward,
+  coreDone,
   dayEarned,
+  isQualifiedDay,
   ledgerOf,
+  listCore,
   uncheckAndRefund,
 } from '../miniprogram/utils/point.js';
 import { defaultSave } from '../miniprogram/utils/save.js';
@@ -208,5 +214,161 @@ describe('与 HABIT 区的边界', () => {
     // 首页不会渲染它，所以正常路径下点不到；但 findHabit 不看 enabled，
     // 这条钉住「停用」的语义只在渲染层，不在发放层
     expect(checkAndAward(disabled, DAY, 'wake', NOW).currency.star).toBe(1);
+  });
+});
+
+// —— 以下是 P3-b 追加的今日全勤与周奖励（POINT-20 ~ POINT-31）——
+
+/** 七条核心项，与 data/defaultHabits.js 的 `core: true` 一致 */
+const CORE = ['wake', 'brush-am', 'literacy', 'reading', 'exercise', 'vegetables', 'poop'];
+
+/** 挨个打卡（走 checkAndAward，不走 pet.js 那层，所以不会顺带结算） */
+function checkAll(save, key, ids, now = NOW) {
+  return ids.reduce((acc, id, i) => checkAndAward(acc, key, id, now + i), save);
+}
+
+/** 把某几条任务停用 */
+function disable(save, ids) {
+  return {
+    ...save,
+    habits: save.habits.map((h) => (ids.includes(h.id) ? { ...h, enabled: false } : h)),
+  };
+}
+
+describe('今日全勤', () => {
+  it('[POINT-20] 七条核心项全部打上后结算，勋章 +1 并写流水', () => {
+    const next = awardAllDone(checkAll(seeded(), DAY, CORE), DAY, NOW);
+
+    expect(next.currency.medal).toBe(1);
+    expect(ledgerOf(next, DAY).at(-1)).toEqual({
+      at: NOW,
+      type: 'earn',
+      reason: '今日全勤',
+      star: 0,
+      gem: 0,
+      petFood: 0,
+      medal: 1,
+    });
+  });
+
+  it('[POINT-21] 全勤后当天的水位 bonuses.allDone 为 true', () => {
+    const next = awardAllDone(checkAll(seeded(), DAY, CORE), DAY, NOW);
+
+    expect(next.days[DAY].bonuses.allDone).toBe(true);
+    // checks / ledger / bonuses 是兄弟键，互不覆盖
+    expect(Object.keys(next.days[DAY]).sort()).toEqual(['bonuses', 'checks', 'ledger']);
+  });
+
+  it('[POINT-22] 只打上六条核心项时不发勋章，也不产生 bonuses', () => {
+    const six = checkAll(seeded(), DAY, CORE.slice(0, 6));
+    const next = awardAllDone(six, DAY, NOW);
+
+    expect(next).toBe(six);
+    expect(next.currency.medal).toBe(0);
+    expect('bonuses' in next.days[DAY]).toBe(false);
+  });
+
+  it('[POINT-23] 已全勤后再结算一次，原样返回且勋章仍只 +1', () => {
+    const once = awardAllDone(checkAll(seeded(), DAY, CORE), DAY, NOW);
+    const twice = awardAllDone(once, DAY, NOW + 1000);
+
+    expect(twice).toBe(once);
+    expect(twice.currency.medal).toBe(1);
+  });
+
+  it('[POINT-24] 全勤后取消一项打卡，勋章不退、水位不清，重新打满不再发第二枚', () => {
+    const awarded = awardAllDone(checkAll(seeded(), DAY, CORE), DAY, NOW);
+    const cancelled = uncheckAndRefund(awarded, DAY, 'poop', NOW + 1000);
+
+    // 「温和，不惩罚」：勋章不退，水位也不清
+    expect(cancelled.currency.medal).toBe(1);
+    expect(cancelled.days[DAY].bonuses.allDone).toBe(true);
+
+    const again = awardAllDone(checkAll(cancelled, DAY, ['poop'], NOW + 2000), DAY, NOW + 3000);
+    expect(again.currency.medal).toBe(1);
+  });
+
+  it('[POINT-25] poop 被家长停用时打满其余六条也算全勤（分母跟着启用状态变）', () => {
+    const save = disable(seeded(), ['poop']);
+    const next = awardAllDone(checkAll(save, DAY, CORE.slice(0, 6)), DAY, NOW);
+
+    expect(listCore(save)).toHaveLength(6);
+    expect(next.currency.medal).toBe(1);
+    expect(next.days[DAY].bonuses.allDone).toBe(true);
+  });
+
+  it('[POINT-26] 七条核心项全被停用时不算全勤', () => {
+    // 一条核心项都没有的存档若算全勤，就会天天白发一枚勋章
+    const save = disable(seeded(), CORE);
+
+    expect(listCore(save)).toEqual([]);
+    expect(coreDone(save, DAY)).toBe(0);
+    expect(awardAllDone(save, DAY, NOW)).toBe(save);
+  });
+
+  it('[POINT-27] 打上九条非核心项不算全勤 —— 判据是核心项，不是「全部打卡项」', () => {
+    const nonCore = ['brush-pm', 'dress', 'toys', 'room', 'desk', 'bag', 'sleep', 'guoxue', 'math'];
+    const save = checkAll(seeded(), DAY, nonCore);
+
+    expect(coreDone(save, DAY)).toBe(0);
+    expect(awardAllDone(save, DAY, NOW)).toBe(save);
+  });
+});
+
+describe('周奖励', () => {
+  // 2026-08-12 是周三，本周是 08-10（周一）~ 08-16
+  const WEEK = weekKeys(NOW);
+
+  /** 让指定的几天各达标（每天打满前 done 条核心项） */
+  function qualifyDays(save, keys, done = 5) {
+    return keys.reduce((acc, key) => checkAll(acc, key, CORE.slice(0, done)), save);
+  }
+
+  it('[POINT-28] 本周五天达标后结算，star +5、gem +1 并写流水', () => {
+    const save = qualifyDays(seeded(), WEEK.slice(0, 5));
+    const before = save.currency.star;
+    const next = awardWeeklyBonus(save, DAY, NOW);
+
+    expect(next.currency.star).toBe(before + 5);
+    expect(next.currency.gem).toBe(1);
+    // 流水落在今天名下：这笔奖励确实是今天到账的
+    expect(ledgerOf(next, DAY).at(-1)).toMatchObject({
+      type: 'earn',
+      reason: '本周打卡 5 天达标',
+      star: 5,
+      gem: 1,
+      medal: 0,
+    });
+  });
+
+  it('[POINT-29] 发过之后 lastWeeklyBonusWeek 是本周周一的日期键', () => {
+    const next = awardWeeklyBonus(qualifyDays(seeded(), WEEK.slice(0, 5)), DAY, NOW);
+
+    expect(next.lastWeeklyBonusWeek).toBe('2026-08-10');
+    expect(next.lastWeeklyBonusWeek).toBe(WEEK[0]);
+  });
+
+  it('[POINT-30] 某天核心项只完成四条时那天不算达标日，达标四天不发周奖励', () => {
+    const four = checkAll(seeded(), WEEK[0], CORE.slice(0, 4));
+    expect(isQualifiedDay(four, WEEK[0])).toBe(false);
+
+    // 另外四天各打满五条 —— 本周只有四个达标日
+    const save = qualifyDays(four, WEEK.slice(1, 5));
+    expect(WEEK.filter((k) => isQualifiedDay(save, k))).toHaveLength(4);
+    expect(awardWeeklyBonus(save, DAY, NOW)).toBe(save);
+  });
+
+  it('[POINT-31] 本周已发过后原样返回；跨到下周一可再发一次', () => {
+    const once = awardWeeklyBonus(qualifyDays(seeded(), WEEK.slice(0, 5)), DAY, NOW);
+    expect(awardWeeklyBonus(once, DAY, NOW + 1000)).toBe(once);
+
+    // 下周一（2026-08-17）：水位不等于新的周键，且新一周里也攒够了五个达标日
+    const nextMonday = new Date(2026, 7, 17, 12, 0, 0, 0).getTime();
+    const nextWeek = weekKeys(nextMonday);
+    const saved = qualifyDays(once, nextWeek.slice(0, 5));
+    const again = awardWeeklyBonus(saved, nextWeek[0], nextMonday);
+
+    expect(again.lastWeeklyBonusWeek).toBe('2026-08-17');
+    expect(again.currency.gem).toBe(2);
   });
 });

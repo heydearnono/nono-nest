@@ -5,7 +5,12 @@
     "pages/health/health",
     "pages/pet/pet",
     "pages/reading/reading",
-    "pages/english/english"
+    "pages/english/english",
+    "pages/literacy/literacy",
+    "pages/poem/poem",
+    "pages/math/math",
+    "pages/reward/reward",
+    "pages/parent/parent"
   ],
   "window": {
     "navigationBarTitleText": "糯糯工作台",

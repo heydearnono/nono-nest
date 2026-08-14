@@ -1,0 +1,119 @@
+<!-- 家长端：蒙层与家长首页是同一页的两个状态（unlocked 是页面字段，不落盘） -->
+<view class="parent" wx:if="{{state}}">
+  <!-- 状态一：PIN 蒙层。冷却中输入框禁用，倒计时在 hint 里 -->
+  <view class="gate" wx:if="{{!unlocked}}">
+    <view class="gate__icon">🔒</view>
+    <view class="gate__title">家长验证</view>
+    <view class="gate__tip">输入 4 位密码</view>
+
+    <input
+      class="gate__input"
+      type="number"
+      password
+      maxlength="4"
+      value="{{input}}"
+      disabled="{{state.locked}}"
+      placeholder="••••"
+      bindinput="onInputPin"
+    />
+
+    <view class="gate__err" wx:if="{{hint}}">{{hint}}</view>
+
+    <button
+      class="gate__btn"
+      disabled="{{state.locked || input.length !== 4}}"
+      bindtap="onTapUnlock"
+    >
+      进去
+    </button>
+  </view>
+
+  <!-- 状态二：家长首页。设置段 + 数据段，第二三段的任务管理 / 看板 / 报告不在本轮 -->
+  <block wx:else>
+    <view class="sec">
+      <view class="sec__title">设置</view>
+
+      <view class="field">
+        <view class="field__label">孩子昵称</view>
+        <input
+          class="field__input"
+          maxlength="12"
+          value="{{form.childName}}"
+          data-field="childName"
+          bindinput="onInputField"
+        />
+      </view>
+
+      <view class="field">
+        <view class="field__label">家长密码</view>
+        <input
+          class="field__input"
+          type="number"
+          maxlength="4"
+          value="{{form.pin}}"
+          data-field="pin"
+          bindinput="onInputField"
+        />
+      </view>
+
+      <view class="field">
+        <view class="field__label">每日目标（1~12 项）</view>
+        <input
+          class="field__input"
+          type="number"
+          maxlength="2"
+          value="{{form.dailyGoal}}"
+          data-field="dailyGoal"
+          bindinput="onInputField"
+        />
+      </view>
+
+      <view class="field">
+        <view class="field__label">备注（只在这里显示）</view>
+        <textarea
+          class="field__area"
+          maxlength="200"
+          value="{{form.note}}"
+          data-field="note"
+          bindinput="onInputField"
+        />
+      </view>
+
+      <button class="save" bindtap="onTapSave">保存</button>
+    </view>
+
+    <view class="sec">
+      <view class="sec__title">数据</view>
+      <view class="sec__now"
+        >这台机器上：{{state.summary.days}} 天记录 · {{state.summary.chars}} 字 ·
+        {{state.summary.poems}} 首 · {{state.summary.rounds}} 道题</view
+      >
+
+      <button class="act" bindtap="onTapExport">复制存档到剪贴板</button>
+
+      <view class="imp">
+        <view class="imp__label">从线上工作台导入（整份覆盖）</view>
+        <textarea
+          class="imp__area"
+          value="{{pasted}}"
+          placeholder="把导出的 JSON 粘在这里"
+          bindinput="onInputPaste"
+        />
+        <button class="act" bindtap="onTapPreview">看看这份数据</button>
+
+        <!-- 摘要是覆盖前唯一能区分「粘对了」与「粘了别的」的东西 -->
+        <view class="prev" wx:if="{{preview}}">
+          <view class="prev__line"
+            >这份数据里：{{preview.days}} 天记录 · {{preview.chars}} 字 · {{preview.poems}} 首 ·
+            {{preview.rounds}} 道题</view
+          >
+          <view class="prev__line prev__line--sub">⭐ {{preview.star}} · 🏅 {{preview.medal}}</view>
+          <button class="act act--warn" bindtap="onTapImport">确认覆盖</button>
+        </view>
+      </view>
+
+      <!-- 清空与上面两个不同样式：灰的、在最下面（doc.md 缺陷 5） -->
+      <view class="reset" bindtap="onTapReset">清空所有数据</view>
+    </view>
+  </block>
+</view>

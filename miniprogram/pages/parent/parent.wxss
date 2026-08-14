@@ -1,0 +1,184 @@
+/* 家长端：蒙层是一屏居中的小卡，家长首页是两段带标题的列表。
+   与其余页面刻意不同的一处：这里没有渐变、没有 emoji 大图、字号也小一号 ——
+   这一页是给成年人看的，孩子进来只该看到那把锁。 */
+
+.parent {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+/* ---- 状态一：PIN 蒙层 ---- */
+
+.gate {
+  margin-top: 120rpx;
+  padding: 56rpx 32rpx;
+  border-radius: 32rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+  text-align: center;
+}
+
+.gate__icon {
+  font-size: 72rpx;
+}
+
+.gate__title {
+  margin-top: 16rpx;
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.gate__tip {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+}
+
+.gate__input {
+  margin: 32rpx auto 0;
+  width: 320rpx;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #f0dbe3;
+  font-size: 44rpx;
+  letter-spacing: 16rpx;
+  text-align: center;
+}
+
+/* 冷却中的那句话与「还能试 N 次」共用一处 —— 两者都是「这次没进去」的原因 */
+.gate__err {
+  margin-top: 20rpx;
+  font-size: 26rpx;
+  color: #c25b7c;
+}
+
+.gate__btn {
+  margin-top: 36rpx;
+  border-radius: 999rpx;
+  background-color: var(--color-primary);
+  color: #fff;
+  font-size: 30rpx;
+}
+
+/* ---- 状态二：家长首页 ---- */
+
+.sec {
+  margin-top: 24rpx;
+  padding: 28rpx 24rpx;
+  border-radius: 24rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 10%);
+}
+
+.sec__title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.sec__now {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  opacity: 0.6;
+}
+
+.field {
+  margin-top: 24rpx;
+}
+
+.field__label {
+  font-size: 26rpx;
+  opacity: 0.7;
+}
+
+.field__input {
+  margin-top: 8rpx;
+  padding: 16rpx 12rpx;
+  border-radius: 12rpx;
+  background-color: #fdf3f6;
+  font-size: 30rpx;
+}
+
+.field__area {
+  margin-top: 8rpx;
+  padding: 16rpx 12rpx;
+  width: 100%;
+  height: 140rpx;
+  border-radius: 12rpx;
+  background-color: #fdf3f6;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.save {
+  margin-top: 32rpx;
+  border-radius: 999rpx;
+  background-color: var(--color-primary);
+  color: #fff;
+  font-size: 30rpx;
+}
+
+.act {
+  margin-top: 20rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid var(--color-primary);
+  background-color: #fff;
+  color: var(--color-primary);
+  font-size: 28rpx;
+}
+
+/* 「确认覆盖」比「看看这份数据」重一级：实心底色 */
+.act--warn {
+  border-color: #c25b7c;
+  background-color: #c25b7c;
+  color: #fff;
+}
+
+.imp {
+  margin-top: 28rpx;
+  padding-top: 20rpx;
+  border-top: 2rpx dashed #f0dbe3;
+}
+
+.imp__label {
+  font-size: 26rpx;
+  opacity: 0.7;
+}
+
+.imp__area {
+  margin-top: 12rpx;
+  padding: 16rpx 12rpx;
+  width: 100%;
+  height: 180rpx;
+  border-radius: 12rpx;
+  background-color: #fdf3f6;
+  font-size: 24rpx;
+  box-sizing: border-box;
+}
+
+.prev {
+  margin-top: 20rpx;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background-color: #fff8e8;
+}
+
+.prev__line {
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.prev__line--sub {
+  margin-top: 4rpx;
+  font-size: 24rpx;
+  opacity: 0.7;
+}
+
+/* 清空：不是按钮形状、灰字、在最下面。与导出/导入三个同样大小挨在一起是线上的缺陷 5 */
+.reset {
+  margin-top: 40rpx;
+  padding: 12rpx 0;
+  font-size: 24rpx;
+  color: #b39aa5;
+  text-align: center;
+  text-decoration: underline;
+}

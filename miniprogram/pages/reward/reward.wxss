@@ -1,0 +1,182 @@
+/* 奖励中心：顶部货币带 + 三张兑换卡 + 兑换记录 + 十一行成就。
+   `purse` 与首页的类名同形同义（都是那条圆角货币带），但两页的 wxss 各自独立，
+   不抽公共层 —— 全仓第三处出现同一形状时再说（与 english.wxss 头注释同一条）。
+   `card` 在本页是横向三列的兑换卡，与 literacy.wxss 的大字卡、reading.wxss 的
+   表单行都不是同一个东西，只是名字撞了。 */
+
+.reward {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.purse {
+  display: flex;
+  gap: 16rpx;
+}
+
+.purse__item {
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.hint {
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+  opacity: 0.7;
+}
+
+.section__title {
+  margin-top: 40rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.cards {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+/* 5 岁的手指要够大的靶（vision.md「什么算好」第 4 条） */
+.card {
+  display: flex;
+  width: calc((100% - 32rpx) / 3);
+  height: 200rpx;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 4rpx solid transparent;
+  border-radius: 28rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+.card--hover {
+  transform: scale(0.96);
+}
+
+/* 买不起是变淡，不是变灰的禁用态：按钮照样能点，点了会说「再攒一攒」 */
+.card--off {
+  opacity: 0.45;
+}
+
+.card__icon {
+  font-size: 56rpx;
+  line-height: 1;
+}
+
+.card__name {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+}
+
+.card__cost {
+  margin-top: 8rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.logs {
+  margin-top: 20rpx;
+}
+
+.log {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  border-radius: 24rpx;
+  margin-bottom: 12rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 10%);
+  font-size: 28rpx;
+}
+
+.log__icon {
+  font-size: 36rpx;
+}
+
+.log__name {
+  flex: 1;
+  margin-left: 16rpx;
+}
+
+.log__cost {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.log__status {
+  margin-left: 16rpx;
+  font-size: 24rpx;
+  opacity: 0.6;
+}
+
+.achv {
+  margin-top: 20rpx;
+}
+
+.achv__item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  border: 4rpx solid transparent;
+  border-radius: 24rpx;
+  margin-bottom: 12rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 10%);
+}
+
+.achv__item--on {
+  border-color: var(--color-primary);
+  background-color: #fff0f5;
+}
+
+.achv__icon {
+  width: 64rpx;
+  font-size: 44rpx;
+  text-align: center;
+}
+
+.achv__body {
+  flex: 1;
+  margin-left: 16rpx;
+}
+
+.achv__name {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.achv__desc {
+  margin-top: 4rpx;
+  font-size: 24rpx;
+  opacity: 0.6;
+}
+
+.achv__bar {
+  overflow: hidden;
+  height: 12rpx;
+  border-radius: 999rpx;
+  margin-top: 12rpx;
+  background-color: #fdf1f5;
+}
+
+.achv__fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #ffb0c8 0%, #ff8fb1 100%);
+}
+
+.achv__num {
+  margin-left: 16rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}

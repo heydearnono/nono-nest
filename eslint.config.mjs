@@ -3,7 +3,10 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['node_modules/**', 'miniprogram_npm/**', 'coverage/**', 'dist/**'],
+    // `.scratch/` 是线上 bundle 的逆向工作区（gitignore 里也有它）：里面是压缩过的
+    // 浏览器产物，不是本仓库的源码。ESLint 扁平配置不再自动跳过点目录，所以显式列出 ——
+    // 不列的话 `npm run check` 会因为别人的 minified 代码报几百条 no-undef
+    ignores: ['node_modules/**', 'miniprogram_npm/**', 'coverage/**', 'dist/**', '.scratch/**'],
   },
 
   js.configs.recommended,

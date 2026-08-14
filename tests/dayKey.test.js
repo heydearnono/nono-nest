@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dayKey, isSameDay, weekKeys } from '../miniprogram/utils/dayKey.js';
+import { dayKey, dayKeyAfter, isSameDay, weekKeys } from '../miniprogram/utils/dayKey.js';
 
 // 规格来源：docs/features/storage/doc.md（`DAY` 区）
 // 时间戳一律用 `new Date(y, m, d, ...)` 构造 —— 该构造函数按本机时区解释入参，
@@ -91,5 +91,39 @@ describe('weekKeys', () => {
     expect(() => weekKeys('2026-08-12')).toThrow(TypeError);
     expect(() => weekKeys(null)).toThrow(TypeError);
     expect(() => weekKeys(undefined)).toThrow(TypeError);
+  });
+});
+
+describe('dayKeyAfter', () => {
+  const wednesday = new Date(2026, 7, 12, 19, 0, 0, 0).getTime();
+
+  it('[DAY-10] days 为 0 就是今天', () => {
+    expect(dayKeyAfter(wednesday, 0)).toBe('2026-08-12');
+    expect(dayKeyAfter(wednesday, 0)).toBe(dayKey(wednesday));
+    // 一天里的任何时刻给出同一个键（锚中午之后不受原时刻影响）
+    expect(dayKeyAfter(new Date(2026, 7, 12, 0, 0, 0, 0).getTime(), 0)).toBe('2026-08-12');
+    expect(dayKeyAfter(new Date(2026, 7, 12, 23, 59, 59, 999).getTime(), 0)).toBe('2026-08-12');
+  });
+
+  it('[DAY-11] 复习间隔表的六档都落在正确的日子上', () => {
+    // REVIEW_STEPS = [1, 2, 4, 7, 14, 30]，最长那一档要跨月
+    expect(dayKeyAfter(wednesday, 1)).toBe('2026-08-13');
+    expect(dayKeyAfter(wednesday, 2)).toBe('2026-08-14');
+    expect(dayKeyAfter(wednesday, 4)).toBe('2026-08-16');
+    expect(dayKeyAfter(wednesday, 7)).toBe('2026-08-19');
+    expect(dayKeyAfter(wednesday, 14)).toBe('2026-08-26');
+    expect(dayKeyAfter(wednesday, 30)).toBe('2026-09-11');
+    // 负数往前，跨年也由 Date 自己进位
+    expect(dayKeyAfter(wednesday, -1)).toBe('2026-08-11');
+    expect(dayKeyAfter(new Date(2026, 11, 31, 12, 0).getTime(), 1)).toBe('2027-01-01');
+  });
+
+  it('[DAY-12] days 非整数抛 RangeError，now 非有限数抛 TypeError', () => {
+    expect(() => dayKeyAfter(wednesday, 2.5)).toThrow(RangeError);
+    expect(() => dayKeyAfter(wednesday, Number.NaN)).toThrow(RangeError);
+    expect(() => dayKeyAfter(wednesday, '3')).toThrow(RangeError);
+    expect(() => dayKeyAfter(wednesday, undefined)).toThrow(RangeError);
+    expect(() => dayKeyAfter(Number.NaN, 1)).toThrow(TypeError);
+    expect(() => dayKeyAfter('2026-08-12', 1)).toThrow(TypeError);
   });
 });

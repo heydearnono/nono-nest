@@ -1,0 +1,143 @@
+/* 识字页：一张大卡片撑住主要面积，5 岁孩子看的是那个字，别的都是配角。
+   与 reading.wxss / english.wxss 只共用 card 这一个类名，且形状完全不同
+   （那两个是表单行，这里是居中的大字卡）—— english.wxss 头注释里
+   「等第三个表单页出现再抽公共层」等的是数学，不是这一页。 */
+
+.lit {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.lit__today {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.lit__sum {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+}
+
+.tabs {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.tabs__item {
+  flex: 1;
+  padding: 20rpx 0;
+  border: 4rpx solid transparent;
+  border-radius: 24rpx;
+  background-color: #fdf1f5;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.tabs__item--on {
+  border-color: var(--color-primary);
+  background-color: #fff0f5;
+  font-weight: 600;
+}
+
+.tabs__item--hover {
+  transform: scale(0.97);
+}
+
+.card {
+  position: relative;
+  padding: 56rpx 32rpx 48rpx;
+  border-radius: 32rpx;
+  margin-top: 24rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+  text-align: center;
+}
+
+.card__emoji {
+  position: absolute;
+  top: 24rpx;
+  right: 28rpx;
+  font-size: 40rpx;
+}
+
+/* 这个字是这一页的全部内容，给到 200rpx —— 隔着一臂距离也认得出 */
+.card__char {
+  font-size: 200rpx;
+  line-height: 1.1;
+}
+
+.card__pinyin {
+  margin-top: 16rpx;
+  font-size: 34rpx;
+  color: var(--color-primary);
+}
+
+.card__words {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 32rpx;
+}
+
+.card__word {
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  background-color: #fdf1f5;
+  font-size: 28rpx;
+}
+
+.card__sentence {
+  margin-top: 24rpx;
+  font-size: 30rpx;
+  opacity: 0.75;
+}
+
+.empty {
+  padding: 120rpx 0;
+  font-size: 32rpx;
+  opacity: 0.6;
+  text-align: center;
+}
+
+.acts {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 40rpx;
+}
+
+/* 5 岁的手指要够大的靶（vision.md「什么算好」第 3 条） */
+.act {
+  flex: 1;
+  padding: 36rpx 0;
+  border-radius: 40rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}
+
+.act--yes {
+  background: linear-gradient(135deg, #ffb0c8 0%, #ff8fb1 100%);
+  box-shadow: 0 6rpx 16rpx rgb(255 143 177 / 24%);
+}
+
+/* 「还不太会」不做成灰色的否定按钮：答错只是安排明天再见，不是惩罚 */
+.act--no {
+  background: linear-gradient(135deg, #bcd8ff 0%, #8fb8ff 100%);
+  box-shadow: 0 6rpx 16rpx rgb(143 184 255 / 24%);
+}
+
+.act--hover {
+  transform: scale(0.97);
+}
+
+.lit__done {
+  margin-top: 32rpx;
+  font-size: 28rpx;
+  color: var(--color-primary);
+  text-align: center;
+}

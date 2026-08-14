@@ -14,6 +14,50 @@ const PET_SCALE_MIN = 0;
 const PET_SCALE_MAX = 5;
 
 /**
+ * 识字复习档位的上界。`step` 是连续答对的次数：`1` ~ `6` 各对应间隔表的一档，`7` 表示已掌握。
+ * 档位对应几天、什么算掌握由 docs/features/literacy/doc.md 定，本层只夹范围。
+ */
+const STEP_MAX = 7;
+
+/**
+ * 古诗复习档位的上界。**与识字不是同一个数**：古诗的间隔表是四档（跨 26 天），
+ * 识字是六档（跨 58 天）—— 两个模块每天的引入量差近五倍，档位疏密本来就不同
+ * （docs/features/poem/doc.md）。本层因此有两个上界常量，不是一个。
+ */
+const POEM_STEP_MAX = 5;
+
+/**
+ * 数学的阶段数。**这不是第三个档位上界** —— 数学没有间隔表、没有 `step` / `due`，
+ * 30 道固定题的「明天再见」由「优先出没答对过的」自然完成
+ * （docs/features/math/doc.md）。这个 6 是六个阶段的编号上界。
+ */
+const MATH_STAGE_MAX = 6;
+
+/**
+ * PIN 连续输错次数的上界。**这是水位不是设置项** —— 它由 `utils/parent.js` 的
+ * `verifyPin` 累加、验对清零，家长端没有输入框能改它。夹到 `5` 只是不让脏存档
+ * 把数字撑大：它唯一的用途是跟 `PIN_MAX_FAILS` 比，存 `999` 与存 `5` 行为一样
+ * （docs/features/parent/doc.md）。
+ */
+const PIN_MAX_FAILS = 5;
+
+/**
+ * 每日目标的上界。线上设置页夹 `1` ~ `12`，但那道夹子在页面里 —— 导入一份
+ * `dailyGoal: 99` 的存档绕得过去，看板会永远显示「差 99 项」。上界落到本层之后
+ * 那条路径消失（docs/features/parent/doc.md 缺陷 6）。
+ */
+const DAILY_GOAL_MAX = 12;
+
+/** 到期日只认 `YYYY-MM-DD` 形状；空串是合法值，含义是「立刻到期」 */
+const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * 兑换记录的两个状态。坏值落 `'pending'` 而不是 `'done'`：
+ * 坏数据宁愿留在待兑现列表里让家长看见，也不要悄悄变成「已经给过了」（SAVE-15）。
+ */
+const REDEMPTION_STATUS = ['pending', 'done'];
+
+/**
  * 收敛成 [min, max] 区间内的整数。非数值、NaN、Infinity 一律取 fallback。
  *
  * @param {unknown} value 待收敛的值
@@ -62,6 +106,156 @@ function isPlainObject(value) {
 }
 
 /**
+ * 收敛识字的跨天进度：一个字一条记录，三个字段。
+ *
+ * 与 `days` 那样透传不同，这里要收敛 —— `days` 的内部结构由各 feature 定义、本层认不出
+ * 好坏，而 `chars` 的三个字段就是两个数加一个日期键，收敛在这里做一次，
+ * utils/literacy.js 的读取路径就不必每处再夹一遍（SAVE-13）。
+ *
+ * @param {unknown} raw 原始的 `learningProgress.literacy` 值
+ * @returns {object} `{ chars: { [char]: { step, due, wrong } } }`
+ */
+function literacyProgress(raw) {
+  const source = isPlainObject(raw) && isPlainObject(raw.chars) ? raw.chars : {};
+  const chars = {};
+
+  for (const [char, record] of Object.entries(source)) {
+    const r = isPlainObject(record) ? record : {};
+    const due = typeof r.due === 'string' && DAY_KEY_RE.test(r.due) ? r.due : '';
+    chars[char] = {
+      step: clampInt(r.step, 0, STEP_MAX, 0),
+      due,
+      wrong: clampInt(r.wrong, 0, Number.POSITIVE_INFINITY, 0),
+    };
+  }
+
+  return { chars };
+}
+
+/**
+ * 收敛古诗的跨天进度：一首诗一条记录，加一个「本周三首」的水位。
+ *
+ * 与 `chars` 的差别有两处，都写在 doc.md 里：`step` 的上界是 `5` 不是 `7`，
+ * 且多一个 `mastered` 布尔。`mastered` 与 `step === POEM_STEP_MAX` 说的是同一件事，
+ * 是**刻意的冗余** —— `ACHV` 区的 `poems_mastered` 判据在 utils/reward.js 里，
+ * 而 reward.js 不能 import poem.js（会成环），所以「会背了没有」必须是存档上
+ * 直接读得出的事实。本层照 `step` 现算它而不是原样收下：两个字段矛盾时以 `step` 为准，
+ * 仲裁规则只有一条（SAVE-17）。
+ *
+ * `weekly` 是**水位**（这一周锁定了哪三首），不是可以重算的快照。本层
+ * **不校验 `ids` 里的 id 在不在诗库里** —— 那要 import data/poems.js，
+ * 而本文件至今不 import 任何 data/。脏 id 由 poemState 在渲染时挑掉（POEM-32）。
+ *
+ * @param {unknown} raw 原始的 `learningProgress.guoxue` 值
+ * @returns {object} `{ poems: { [id]: { step, due, wrong, mastered } }, weekly: { weekKey, ids } }`
+ */
+function guoxueProgress(raw) {
+  const source = isPlainObject(raw) && isPlainObject(raw.poems) ? raw.poems : {};
+  const poems = {};
+
+  for (const [id, record] of Object.entries(source)) {
+    const r = isPlainObject(record) ? record : {};
+    const step = clampInt(r.step, 0, POEM_STEP_MAX, 0);
+    poems[id] = {
+      step,
+      due: typeof r.due === 'string' && DAY_KEY_RE.test(r.due) ? r.due : '',
+      wrong: clampInt(r.wrong, 0, Number.POSITIVE_INFINITY, 0),
+      mastered: step === POEM_STEP_MAX,
+    };
+  }
+
+  const rawWeekly = isPlainObject(raw) && isPlainObject(raw.weekly) ? raw.weekly : {};
+
+  return {
+    poems,
+    weekly: {
+      weekKey:
+        typeof rawWeekly.weekKey === 'string' && DAY_KEY_RE.test(rawWeekly.weekKey)
+          ? rawWeekly.weekKey
+          : '',
+      ids: arr(rawWeekly.ids).filter((id) => typeof id === 'string'),
+    },
+  };
+}
+
+/**
+ * 收敛数学的跨天进度：一道题一条记录（两个字段），加一个「当前阶段」的水位。
+ *
+ * **与 `chars` / `poems` 不同构**：没有 `step` / `due` —— 数学不做复习调度
+ * （docs/features/math/doc.md）。所以本文件有两个档位上界常量而不是三个。
+ *
+ * `correct` 是「答对过没有」，**终态**：答对之后再答错也不退回，那条规则在
+ * utils/math.js 里；本层只保证它是布尔。`wrong` 是答错次数，非负整数。
+ *
+ * `stage` 是**水位**（这一刻实际在第几阶段），与 `guoxue.weekly`、
+ * `lastWeeklyBonusWeek` 同一类：它推得出来（本阶段 5 道全对就该进下一阶段），
+ * 但落盘的是「实际在第几阶段」—— 升阶要弹一句话，那句话不能每次读取都弹一遍。
+ * 与 `rounds` 矛盾时**以 `stage` 为准**（MATH-32），仲裁规则只有一条。
+ *
+ * **本层不校验 `rounds` 里的 id 在不在题库里** —— 那要 import data/mathRounds.js，
+ * 而本文件至今不 import 任何 data/。脏 id 由 mathState 在渲染时挑掉（MATH-33）。
+ *
+ * @param {unknown} raw 原始的 `learningProgress.math` 值
+ * @returns {object} `{ rounds: { [id]: { correct, wrong } }, stage: number }`
+ */
+function mathProgress(raw) {
+  const source = isPlainObject(raw) && isPlainObject(raw.rounds) ? raw.rounds : {};
+  const rounds = {};
+
+  for (const [id, record] of Object.entries(source)) {
+    if (!isPlainObject(record)) continue; // 非对象的记录整条丢掉（SAVE-18）
+    rounds[id] = {
+      correct: record.correct === true,
+      wrong: clampInt(record.wrong, 0, Number.POSITIVE_INFINITY, 0),
+    };
+  }
+
+  return {
+    rounds,
+    stage: clampInt(isPlainObject(raw) ? raw.stage : undefined, 1, MATH_STAGE_MAX, 1),
+  };
+}
+
+/**
+ * 收敛兑换记录：非对象的元素整条丢掉，未知字段丢弃。
+ *
+ * `name` / `icon` / `medalCost` 是**快照**（线上同样）：家长将来改了奖励的名字或价格，
+ * 历史记录仍显示当时兑的是什么、花了多少。所以本层不去 data/rewards.js 回查这三个值。
+ *
+ * 收敛的理由与 `chars` 同一条：元素字段就是几个数和几个字符串，本层认得出好坏，
+ * 收敛一次让 utils/reward.js 的读取路径不必每处再夹一遍（SAVE-15）。
+ *
+ * @param {unknown} value 原始的 `redemptions` 值
+ * @returns {object[]} 兑换记录，最新在前（顺序原样保留）
+ */
+function redemptions(value) {
+  const noMax = Number.POSITIVE_INFINITY;
+
+  return arr(value)
+    .filter(isPlainObject)
+    .map((item) => ({
+      at: clampInt(item.at, 0, noMax, 0),
+      rewardId: str(item.rewardId, '', true),
+      name: str(item.name, '', true),
+      icon: str(item.icon, '', true),
+      medalCost: clampInt(item.medalCost, 0, noMax, 0),
+      status: REDEMPTION_STATUS.includes(item.status) ? item.status : REDEMPTION_STATUS[0],
+    }));
+}
+
+/**
+ * 收敛成就 id：只留字符串并去重。
+ *
+ * 它是 `includes` 判断「解锁过没有」的依据，重复项会让奖励中心的已解锁计数虚高（SAVE-16）。
+ *
+ * @param {unknown} value 原始的 `achievements` 值
+ * @returns {string[]} 成就 id
+ */
+function achievements(value) {
+  return [...new Set(arr(value).filter((id) => typeof id === 'string'))];
+}
+
+/**
  * 存档的默认值。每次调用返回**新对象**，调用方可以随意改而不污染其它调用方。
  *
  * @returns {object} 一份全新的默认存档
@@ -87,7 +281,21 @@ export function defaultSave() {
     days: {},
     redemptions: [],
     achievements: [],
-    parent: { pin: '1234', dailyGoal: 6, note: '' },
+    // 上次发过周奖励的周键（weekKeys(now)[0]，即本周周一的 dayKey）。
+    // 空串 = 从未发过：`'' !== 本周周键` 天然成立，第一周不需要特判（SAVE-14）
+    lastWeeklyBonusWeek: '',
+    // 跨天的学习进度。识字落 chars（字 -> { step, due, wrong }），
+    // 古诗落 poems（诗 id -> { step, due, wrong, mastered }）与 weekly 水位，
+    // 数学落 rounds（题 id -> { correct, wrong }）与 stage 水位。
+    // 三个子键之后这个顶层键就满了：阅读与英语在线上是死字段，不搬
+    learningProgress: {
+      literacy: { chars: {} },
+      guoxue: { poems: {}, weekly: { weekKey: '', ids: [] } },
+      math: { rounds: {}, stage: 1 },
+    },
+    // 三个设置项（pin / dailyGoal / note，线上 parentSettings 原样映射）
+    // 加两个 PIN 节流水位（pinFails / pinLockedUntil，线上没有，导入落默认值）
+    parent: { pin: '1234', dailyGoal: 6, note: '', pinFails: 0, pinLockedUntil: 0 },
     soundEnabled: true,
     createdAt: 0,
     updatedAt: 0,
@@ -131,12 +339,31 @@ export function normalizeSave(raw) {
     habits: arr(raw.habits),
     // days 的内部结构由各 feature 自己定义，本层只保证原样存、原样取
     days: isPlainObject(raw.days) ? { ...raw.days } : {},
-    redemptions: arr(raw.redemptions),
-    achievements: arr(raw.achievements),
+    redemptions: redemptions(raw.redemptions),
+    achievements: achievements(raw.achievements),
+    // 只认日期键形状，其余落空串。落空串的后果是「这周可能再发一次周奖励」，
+    // 而落一个乱码的后果是「永远发不出去」—— 宁愿多发一次也不要让奖励卡死（SAVE-14）
+    lastWeeklyBonusWeek:
+      typeof raw.lastWeeklyBonusWeek === 'string' && DAY_KEY_RE.test(raw.lastWeeklyBonusWeek)
+        ? raw.lastWeeklyBonusWeek
+        : '',
+    learningProgress: {
+      literacy: literacyProgress(
+        isPlainObject(raw.learningProgress) ? raw.learningProgress.literacy : undefined,
+      ),
+      guoxue: guoxueProgress(
+        isPlainObject(raw.learningProgress) ? raw.learningProgress.guoxue : undefined,
+      ),
+      math: mathProgress(
+        isPlainObject(raw.learningProgress) ? raw.learningProgress.math : undefined,
+      ),
+    },
     parent: {
       pin: str(rawParent.pin, base.parent.pin),
-      dailyGoal: clampInt(rawParent.dailyGoal, 1, noMax, base.parent.dailyGoal),
+      dailyGoal: clampInt(rawParent.dailyGoal, 1, DAILY_GOAL_MAX, base.parent.dailyGoal),
       note: str(rawParent.note, base.parent.note, true),
+      pinFails: clampInt(rawParent.pinFails, 0, PIN_MAX_FAILS, base.parent.pinFails),
+      pinLockedUntil: clampInt(rawParent.pinLockedUntil, 0, noMax, base.parent.pinLockedUntil),
     },
     soundEnabled: typeof raw.soundEnabled === 'boolean' ? raw.soundEnabled : base.soundEnabled,
     createdAt: clampInt(raw.createdAt, 0, noMax, base.createdAt),

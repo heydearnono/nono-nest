@@ -13,6 +13,9 @@ coverage/
 .eslintcache
 .vitest/
 
+# 线上 bundle 的逆向工作区（原始产物，不入库；搬进 data/ 的是整理后的数据）
+.scratch/
+
 # 系统与编辑器
 .DS_Store
 Thumbs.db

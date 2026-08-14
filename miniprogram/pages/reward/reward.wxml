@@ -1,0 +1,69 @@
+<!-- 奖励中心：顶部货币 + 三张兑换卡 + 兑换记录 + 十一行成就。
+     买得起买不起（affordable）、状态文案（statusText）、进度几分之几都由
+     utils/reward.js 的两个 *State 算好，这里只渲染结论 -->
+<view class="reward" wx:if="{{state}}">
+  <view class="purse">
+    <view class="purse__item">🏅 {{state.medal}}</view>
+    <view class="purse__item">💎 {{state.gem}}</view>
+  </view>
+
+  <view class="hint">
+    今日 {{state.coreDone}}/{{state.coreTotal}} 项全满 +1🏅 · 本周达标
+    {{state.weekBonus.days}}/{{state.weekBonus.minDays}} 天 +1💎
+  </view>
+
+  <view class="section__title">换点什么</view>
+  <view class="cards">
+    <!-- 按钮不 disabled：点了要给出「为什么不能」的提示，禁用掉就没有反馈了
+         （与宠物页的喂食按钮同一条） -->
+    <view
+      class="card {{item.affordable ? '' : 'card--off'}}"
+      wx:for="{{state.items}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onTapRedeem"
+      hover-class="card--hover"
+    >
+      <view class="card__icon">{{item.icon}}</view>
+      <view class="card__name">{{item.name}}</view>
+      <view class="card__cost">{{item.medalCost}}🏅</view>
+    </view>
+  </view>
+
+  <view class="section__title" wx:if="{{state.redemptions.length > 0}}">换过的</view>
+  <view class="logs">
+    <view class="log" wx:for="{{state.redemptions}}" wx:key="at">
+      <text class="log__icon">{{item.icon}}</text>
+      <text class="log__name">{{item.name}}</text>
+      <text class="log__cost">-{{item.medalCost}}🏅</text>
+      <text class="log__status">{{item.statusText}}</text>
+    </view>
+  </view>
+
+  <view class="section__title">成就</view>
+  <view class="achv">
+    <view
+      class="achv__item {{item.unlocked ? 'achv__item--on' : ''}}"
+      wx:for="{{achievements}}"
+      wx:key="id"
+    >
+      <view class="achv__icon">{{item.icon}}</view>
+      <view class="achv__body">
+        <view class="achv__name">
+          {{item.name}}
+          <text class="achv__done" wx:if="{{item.unlocked}}">✅</text>
+        </view>
+        <view class="achv__desc">{{item.description}}</view>
+        <view class="achv__bar">
+          <!-- 宽度百分比在这里算：WXML 支持乘除，不支持 Math.round，
+               而这一格不需要取整（进度条是视觉，不是数值） -->
+          <view
+            class="achv__fill"
+            style="width: {{(item.progress / item.threshold) * 100}}%"
+          ></view>
+        </view>
+      </view>
+      <view class="achv__num">{{item.progress}}/{{item.threshold}}</view>
+    </view>
+  </view>
+</view>

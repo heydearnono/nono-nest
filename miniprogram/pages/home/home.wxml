@@ -1,6 +1,17 @@
 <!-- 首页：问候语 + 今日进度 + 九个打卡格子。不读长句就能用（vision.md「什么算好」第 3 条） -->
 <view class="home">
-  <view class="home__greeting">{{greeting}}</view>
+  <!-- 问候语兼家长端入口：按住 1.5 秒进 PIN 蒙层。
+       不新开 ⚙️ 角标 —— 再加一个只有家长会用的按钮，是给孩子多一个可点的东西。
+       bindlongpress 默认 350ms 太短，所以计时自己写（home.js 的 setTimeout）。
+       touchend 与 touchcancel 都清同一个 timer —— 线上只清了一半，滚动接管时
+       蒙层会在三秒后自己弹出来（parent/doc.md 缺陷 1） -->
+  <view
+    class="home__greeting"
+    bindtouchstart="onGreetTouchStart"
+    bindtouchend="onGreetTouchEnd"
+    bindtouchcancel="onGreetTouchEnd"
+    >{{greeting}}</view
+  >
 
   <view class="home__stat">
     <view class="home__progress">{{done}} / {{total}}</view>
@@ -8,10 +19,14 @@
     <view class="home__streak home__streak--zero" wx:else>今天还没开始</view>
   </view>
 
-  <!-- 货币带：只显示打卡能产出的两种。宝石与勋章恒为 0，显示了是噪音 -->
-  <view class="purse">
+  <!-- 货币带：四种都会动了（P3-b 起勋章由全勤与成就产出、宝石由周奖励产出）。
+       点一下进奖励中心 —— 不加第五个 tab，四个已经是 5 岁孩子能记住的上限 -->
+  <view class="purse" bindtap="onTapReward" hover-class="purse--hover">
     <view class="purse__item">⭐ {{star}}</view>
     <view class="purse__item">🍖 {{petFood}}</view>
+    <view class="purse__item">🏅 {{medal}}</view>
+    <view class="purse__item">💎 {{gem}}</view>
+    <view class="purse__more">换奖励 ›</view>
   </view>
 
   <view class="grid">

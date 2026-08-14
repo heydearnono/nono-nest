@@ -101,4 +101,203 @@ describe('normalizeSave 的字段白名单与透传', () => {
 
     expect(result.days['2026-08-11']).toEqual(day);
   });
+
+  it('[SAVE-13] learningProgress.literacy.chars 默认为空对象，坏值被收敛', () => {
+    expect(defaultSave().learningProgress.literacy.chars).toEqual({});
+    expect(normalizeSave({}).learningProgress.literacy.chars).toEqual({});
+    expect(normalizeSave({ learningProgress: 42 }).learningProgress.literacy.chars).toEqual({});
+
+    const dirty = normalizeSave({
+      learningProgress: {
+        literacy: {
+          chars: {
+            的: { step: 99, due: '2026-08-20', wrong: -3 },
+            一: { step: -1, due: '昨天', wrong: 2.6 },
+            是: { step: '2', due: '', wrong: undefined },
+            天: '坏记录',
+          },
+        },
+      },
+    });
+
+    // step 夹到 0~7、due 只认 YYYY-MM-DD 形状（其余落空串）、wrong 夹成非负整数
+    expect(dirty.learningProgress.literacy.chars).toEqual({
+      的: { step: 7, due: '2026-08-20', wrong: 0 },
+      一: { step: 0, due: '', wrong: 3 },
+      是: { step: 0, due: '', wrong: 0 },
+      天: { step: 0, due: '', wrong: 0 },
+    });
+  });
+
+  it('[SAVE-17] learningProgress.guoxue 的默认值、step 上界 5 与 mastered 的仲裁', () => {
+    const empty = { poems: {}, weekly: { weekKey: '', ids: [] } };
+
+    expect(defaultSave().learningProgress.guoxue).toEqual(empty);
+    expect(normalizeSave({}).learningProgress.guoxue).toEqual(empty);
+    expect(normalizeSave({ learningProgress: 42 }).learningProgress.guoxue).toEqual(empty);
+
+    const dirty = normalizeSave({
+      learningProgress: {
+        guoxue: {
+          poems: {
+            // 古诗的上界是 5 不是 7：夹到 7 说明两个 feature 的档位表被混成了一张
+            p1: { step: 99, due: '2026-08-20', wrong: -3, mastered: false },
+            // mastered 与 step 矛盾时以 step 为准（本层照 step 现算，不原样收下）
+            p2: { step: 2, due: '昨天', wrong: 2.6, mastered: true },
+            p3: { step: '5', due: '', wrong: undefined, mastered: true },
+            p4: '坏记录',
+          },
+          weekly: { weekKey: '2026-W33', ids: ['p1', 7, null, 'p2'] },
+        },
+      },
+    });
+
+    expect(dirty.learningProgress.guoxue.poems).toEqual({
+      p1: { step: 5, due: '2026-08-20', wrong: 0, mastered: true },
+      p2: { step: 2, due: '', wrong: 3, mastered: false },
+      p3: { step: 0, due: '', wrong: 0, mastered: false },
+      p4: { step: 0, due: '', wrong: 0, mastered: false },
+    });
+
+    // weekKey 只认 YYYY-MM-DD 形状，ids 只留字符串（脏 id 由 poemState 在渲染时挑掉）
+    expect(dirty.learningProgress.guoxue.weekly).toEqual({ weekKey: '', ids: ['p1', 'p2'] });
+
+    const clean = normalizeSave({
+      learningProgress: { guoxue: { weekly: { weekKey: '2026-08-10', ids: ['p1', 'p2', 'p3'] } } },
+    });
+
+    // 合法水位原样保留：改写它等于每天重选本周三首
+    expect(clean.learningProgress.guoxue.weekly).toEqual({
+      weekKey: '2026-08-10',
+      ids: ['p1', 'p2', 'p3'],
+    });
+  });
+
+  it('[SAVE-18] learningProgress.math 的默认值、stage 夹 1~6 与 rounds 的两个字段', () => {
+    const empty = { rounds: {}, stage: 1 };
+
+    expect(defaultSave().learningProgress.math).toEqual(empty);
+    expect(normalizeSave({}).learningProgress.math).toEqual(empty);
+    expect(normalizeSave({ learningProgress: 42 }).learningProgress.math).toEqual(empty);
+
+    // stage 的上界是 6（阶段数），下界是 1 —— 这不是第三个档位上界，数学没有间隔表
+    expect(
+      normalizeSave({ learningProgress: { math: { stage: 99 } } }).learningProgress.math.stage,
+    ).toBe(6);
+    expect(
+      normalizeSave({ learningProgress: { math: { stage: -1 } } }).learningProgress.math.stage,
+    ).toBe(1);
+    expect(
+      normalizeSave({ learningProgress: { math: { stage: '2' } } }).learningProgress.math.stage,
+    ).toBe(1);
+
+    const dirty = normalizeSave({
+      learningProgress: {
+        math: {
+          rounds: {
+            'm1-1': { correct: true, wrong: -3 },
+            // correct 只认布尔：truthy 的字符串不算「答对过」
+            'm1-2': { correct: 'yes', wrong: 2.6 },
+            'm1-3': { wrong: undefined },
+            'm1-4': '坏记录',
+          },
+          stage: 3,
+        },
+      },
+    });
+
+    // 非对象的记录整条丢掉（与 chars / poems 那两处「补成空记录」不同：
+    // 那两处的记录只有数值字段、补空是安全的，而这里 correct 补 false 会把
+    // 「答对过」悄悄改成「没答对过」—— 丢掉让 mathState 当它不存在，语义一致）
+    expect(dirty.learningProgress.math.rounds).toEqual({
+      'm1-1': { correct: true, wrong: 0 },
+      'm1-2': { correct: false, wrong: 3 },
+      'm1-3': { correct: false, wrong: 0 },
+    });
+    expect(dirty.learningProgress.math.stage).toBe(3);
+  });
+
+  it('[SAVE-19] parent 的三个设置项与两个 PIN 水位：默认值、dailyGoal 上界 12、脏值收敛', () => {
+    const empty = { pin: '1234', dailyGoal: 6, note: '', pinFails: 0, pinLockedUntil: 0 };
+
+    expect(defaultSave().parent).toEqual(empty);
+    expect(normalizeSave({}).parent).toEqual(empty);
+    expect(normalizeSave({ parent: 42 }).parent).toEqual(empty);
+
+    // dailyGoal 的上界从 +∞ 收到 12（线上只在设置页夹，导入绕得过去）
+    expect(normalizeSave({ parent: { dailyGoal: 99 } }).parent.dailyGoal).toBe(12);
+    expect(normalizeSave({ parent: { dailyGoal: 0 } }).parent.dailyGoal).toBe(1);
+    expect(normalizeSave({ parent: { dailyGoal: '8' } }).parent.dailyGoal).toBe(6);
+
+    // pinFails 是水位：夹到 0 ~ 5 只是不让脏存档撑大数字
+    expect(normalizeSave({ parent: { pinFails: -3 } }).parent.pinFails).toBe(0);
+    expect(normalizeSave({ parent: { pinFails: 99 } }).parent.pinFails).toBe(5);
+    expect(normalizeSave({ parent: { pinFails: 3 } }).parent.pinFails).toBe(3);
+
+    // pinLockedUntil 是毫秒时间戳，非负、无上界
+    expect(normalizeSave({ parent: { pinLockedUntil: -1 } }).parent.pinLockedUntil).toBe(0);
+    expect(normalizeSave({ parent: { pinLockedUntil: 1e13 } }).parent.pinLockedUntil).toBe(1e13);
+
+    // note 允许空串（str 的第三个参数），pin 不允许
+    expect(normalizeSave({ parent: { note: '', pin: '' } }).parent).toEqual({
+      ...empty,
+      note: '',
+      pin: '1234',
+    });
+  });
+});
+
+describe('周奖励的水位与两个数组的元素收敛', () => {
+  it('[SAVE-14] lastWeeklyBonusWeek 缺失或非日期键形状时落空串', () => {
+    // 空串的含义是「从未发过周奖励」：'' !== 本周周键 天然成立，第一周不需要特判
+    expect(defaultSave().lastWeeklyBonusWeek).toBe('');
+    expect(normalizeSave({}).lastWeeklyBonusWeek).toBe('');
+    expect(normalizeSave({ lastWeeklyBonusWeek: '2026-W33' }).lastWeeklyBonusWeek).toBe('');
+    expect(normalizeSave({ lastWeeklyBonusWeek: 1754880000000 }).lastWeeklyBonusWeek).toBe('');
+    // 合法的周键原样保留，否则周奖励会每天重发
+    expect(normalizeSave({ lastWeeklyBonusWeek: '2026-08-10' }).lastWeeklyBonusWeek).toBe(
+      '2026-08-10',
+    );
+  });
+
+  it('[SAVE-15] redemptions 的脏元素被收敛，非对象的整条丢掉', () => {
+    const result = normalizeSave({
+      redemptions: [
+        {
+          at: 1754880000000,
+          rewardId: 'snack',
+          name: '零食一次',
+          icon: '🍪',
+          medalCost: -2,
+          status: 'weird',
+          resolvedAt: '2026-08-11T09:30:00.000Z',
+        },
+        '坏记录',
+        null,
+        42,
+      ],
+    });
+
+    // status 落 'pending' 而不是 'done'：坏数据宁愿留在待兑现列表里让家长看见
+    expect(result.redemptions).toEqual([
+      {
+        at: 1754880000000,
+        rewardId: 'snack',
+        name: '零食一次',
+        icon: '🍪',
+        medalCost: 0,
+        status: 'pending',
+      },
+    ]);
+    // 未知字段被丢弃
+    expect('resolvedAt' in result.redemptions[0]).toBe(false);
+    // 合法的 'done' 不被改写
+    expect(normalizeSave({ redemptions: [{ status: 'done' }] }).redemptions[0].status).toBe('done');
+  });
+
+  it('[SAVE-16] achievements 去重且只留字符串', () => {
+    expect(normalizeSave({ achievements: ['a', 'a', 7, null] }).achievements).toEqual(['a']);
+    expect(normalizeSave({ achievements: 'early-bird' }).achievements).toEqual([]);
+    expect(defaultSave().achievements).toEqual([]);
+  });
 });

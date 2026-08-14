@@ -3,10 +3,14 @@
  *
  * 规格来源：docs/features/pet/doc.md（`PET` / `FULLNESS` / `MOOD` 三个区）
  *
- * 依赖方向 pet.js → point.js → habit.js → data/，无环。
+ * 依赖方向 pet.js → reward.js → point.js → habit.js → data/，无环
+ * （`reward.js` **不** import 本模块：`pet-5` 成就直接读 `save.pet.petLevel`）。
  * `checkAwardAndGrow` 是包在 `checkAndAward` **外面**的一层：升级是个 while 循环，
  * 塞进发放函数会让 POINT-01 的断言范围悄悄扩大到宠物等级
  * （见 docs/features/point/summary.md）。
+ *
+ * P3-b 起它末尾还调 `settleDay`，于是**每一次打卡都必然结算一次奖励**
+ * （四条打卡路径本来就全走它），不留给五个页面各自调。规格是 `REWARD-13`。
  *
  * 与线上最大的偏差：**饱腹度会随时间衰减**。线上的 `satiety` 只升不降，
  * 于是宠物粮没有用途、「照顾一只小伙伴」这件事不成立。理由写在 doc.md 里。
@@ -15,6 +19,7 @@
 
 import { PET_TYPES } from '../data/petTypes.js';
 import { checkAndAward } from './point.js';
+import { settleDay } from './reward.js';
 
 /** 饱腹度每衰减 1 点所需的时长：6 小时。拍板值，理由见 doc.md 的 FULLNESS 规格表 */
 const FULLNESS_DECAY_MS = 6 * 60 * 60 * 1000;
@@ -270,14 +275,23 @@ export function choosePet(save, type) {
 }
 
 /**
- * 打卡：发放货币与流水（`POINT` 区），再涨经验与开心度。
+ * 打卡：发放货币与流水（`POINT` 区），再涨经验与开心度，最后结算奖励（`REWARD` 区）。
  *
  * 幂等靠对象同一性 —— `checkAndAward` 幂等时返回入参本身，
  * 所以 `awarded === save` 就是「这次没有新打卡」的可靠信号，
  * 不必再问一遍 `isChecked`（与 `POINT` 区同一条约定）。
  *
+ * **`settleDay` 挂在这里，不留给页面**（`REWARD-13`）：四条打卡路径（自律、健康、
+ * 学习表单、识字）全走本函数，所以一处挂上等于五个页面一起接上，
+ * 「打满七条核心项就有勋章」这条不变式由一个函数独占维护。线上正是在四个调用点
+ * 各写一遍成就与全勤结算，漏一处就是一类打卡不发勋章。
+ *
+ * 它排在涨经验**之后**：`pet-5` 成就读的是 `pet.petLevel`，这次打卡刚好升到 5 级时，
+ * 同一次调用里就该解锁，不必等下一次打卡。
+ *
  * **取消打卡没有对应的外层函数**：撤回只退货币（`uncheckAndRefund`），
- * 不收回经验、不降开心度 —— 与线上一致，也是「温和，不惩罚」的直接推论。
+ * 不收回经验、不降开心度、也不退勋章 —— 与线上一致，
+ * 也是「温和，不惩罚」的直接推论。
  *
  * `gainedExp` 由调用方给：自律打卡 5（默认值），学习打卡 8。
  * 这里**不按 `habitId` 分支** —— 那会让 pet.js 反向依赖 data/defaultHabits.js
@@ -295,6 +309,10 @@ export function checkAwardAndGrow(save, key, habitId, now, gainedExp = EXP_PER_C
   if (awarded === save) return save;
 
   const grown = grow(awarded.pet, gainedExp);
+  const withPet = {
+    ...awarded,
+    pet: { ...grown, mood: Math.min(PET_SCALE_MAX, grown.mood + 1) },
+  };
 
-  return { ...awarded, pet: { ...grown, mood: Math.min(PET_SCALE_MAX, grown.mood + 1) } };
+  return settleDay(withPet, key, now);
 }

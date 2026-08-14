@@ -66,11 +66,13 @@ describe('学习入口与共用的打卡链（LEARN）', () => {
     expect(items[1]).toMatchObject({ name: '阅读', icon: '📖', desc: '亲子/独立阅读' });
   });
 
-  it('[LEARN-02] 只有阅读与英语 ready，其余三格还没做', () => {
+  it('[LEARN-02] 五格 ready 全为 true（page 都填上了）', () => {
     const { items } = listLearning(seeded(), DAY);
-    const ready = items.filter((item) => item.ready).map((item) => item.module);
 
-    expect(ready).toEqual(['reading', 'english']);
+    // 识字在 P5 第二轮、国学在第三轮、数学在第四轮补上 page —— 至此没有空串了。
+    // 这条断言改了四次，这是最后一次：往后 ready 恒真，它钉的是「别把某一格的 page 删空」
+    expect(items.every((item) => item.ready)).toBe(true);
+    expect(items.map((item) => item.page)).not.toContain('');
   });
 
   it('[LEARN-03] 打过阅读卡后那一格 done，汇总为 1/5', () => {

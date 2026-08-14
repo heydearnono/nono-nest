@@ -64,3 +64,30 @@ export function weekKeys(now) {
     return dayKey(day.getTime());
   });
 }
+
+/**
+ * 从 `now` 往后 `days` 天的日期键。`0` 就是今天，负数是往前。
+ *
+ * 复习调度要算「答对了，下次 4 天后再出现」（识字与古诗共用这一个原语，
+ * 见 docs/features/literacy/doc.md）。锚中午的理由与 `weekKeys` 同一条。
+ *
+ * `days` 必须是整数：`2.5` 天没有对应的日期键，那是调用方算错了。
+ *
+ * @param {number} now 毫秒时间戳
+ * @param {number} days 天数，整数，可为负
+ * @returns {string} `dayKey`
+ */
+export function dayKeyAfter(now, days) {
+  if (!Number.isFinite(now)) {
+    throw new TypeError(`now 必须是有限数的毫秒时间戳，收到 ${now}`);
+  }
+  if (!Number.isInteger(days)) {
+    throw new RangeError(`days 必须是整数，收到 ${days}`);
+  }
+
+  const d = new Date(now);
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+
+  return dayKey(d.getTime());
+}

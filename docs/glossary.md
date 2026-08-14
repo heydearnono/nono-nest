@@ -18,14 +18,15 @@
 | 自律任务   | `habit`       | 家长端可增删的习惯项，是 `checkItem` 的来源                              | `routine` / `todo` / `chore`                     |
 | 奖励       | `reward`      | 可用勋章兑换的项（零食、动画片、零花钱）                                 | `prize` / `gift` / `item`                        |
 | 兑换记录   | `redemption`  | 一次兑换请求及其状态                                                     | `order` / `exchange` / `log`                     |
+| 兑换状态   | `status`      | `pending` 等家长兑现 / `done` 已兑现                                     | `state` / `stage` / `phase`                      |
 | 贴纸       | `sticker`     | 抽取获得的收藏物，有类别与稀有度                                         | `card` / `badge` / `collectible`                 |
 | 成就       | `achievement` | 达成条件后解锁，一次性                                                   | `medal`（`medal` 是货币）/ `trophy` / `badge`    |
 | 宠物       | `pet`         | 陪伴主角，全局唯一，形象可更换                                           | `animal` / `creature` / `nono`（nono 是孩子）    |
 | 宠物状态   | `petState`    | 某一时刻宠物的完整可观测状态                                             | `status` / `petInfo` / `petData`                 |
 | 汉字       | `character`   | 汉字库中的一条（含拼音、组词、例句）                                     | `word` / `hanzi` / `char`（`char` 是它的字段名） |
 | 古诗       | `poem`        | 古诗库中的一首                                                           | `poetry` / `verse` / `shi`                       |
-| 数学阶段   | `mathStage`   | 共六个阶段，见 `docs/features/storage/doc.md`                            | `level` / `chapter` / `unit`                     |
-| 关卡       | `mathRound`   | 阶段内的一道题，每阶段 4 普通 + 1 Boss                                   | `question` / `quiz` / `game`                     |
+| 数学阶段   | `mathStage`   | 六个阶段之一（数感 → 钟表人民币），五道全答对过即升一阶，上限 6、不降阶  | `level` / `chapter` / `unit`                     |
+| 关卡       | `mathRound`   | 30 道固定题之一（每阶段 4 普通 + 1 Boss），`correct` 是终态              | `question` / `quiz` / `game`                     |
 | 打卡流水   | `ledgerEntry` | 一次货币增减的记录，挂在当天的存档下                                     | `transaction` / `history` / `log`                |
 | 学习子模块 | `module`      | 五个学习子页之一：`literacy` / `reading` / `guoxue` / `math` / `english` | `subject` / `subCategory` / `lesson`             |
 | 学习记录   | `learningLog` | 当天某个学习子模块填写的内容（书名、时长……）                             | `detail` / `entry` / `form`                      |
@@ -64,12 +65,15 @@
 | 当前时刻     | `now`          | 毫秒时间戳，**必须由调用方传入纯函数**    | `Date.now()` 直接调用、`currentTime` |
 | 自然日       | `dayKey`       | `YYYY-MM-DD` 字符串，本机时区，日结算的键 | `date` / `today` / `ymd`             |
 | 本周         | `weekKeys`     | 本周七个 `dayKey`，**周一为起点**         | `week` / `thisWeek` / `weekRange`    |
+| N 天后       | `dayKeyAfter`  | 从 `now` 往后 N 天的 `dayKey`，`0` 是今天 | `addDays` / `nextDay` / `plusDays`   |
 | 上次喂食时刻 | `lastFedAt`    | 毫秒时间戳                                | `feedTime` / `lastFeed`              |
 | 上次陪玩时刻 | `lastPlayedAt` | 毫秒时间戳                                | `playTime` / `lastPlay`              |
 | 离开时长     | `elapsedMs`    | 两个时刻之间的毫秒差                      | `duration` / `delta` / `diff`        |
 | 衰减         | `decay`        | 数值随时间自然变差的过程                  | `decrease` / `drop` / `reduce`       |
 | 连续天数     | `streak`       | 连续达标的自然日数，漏一天归零            | `combo` / `chain` / `continuousDays` |
-| 今日全勤     | `allDone`      | 当日全部打卡项完成                        | `perfect` / `fullMark` / `complete`  |
+| 今日全勤     | `allDone`      | 当日七条核心打卡项全部完成                | `perfect` / `fullMark` / `complete`  |
+| 本周周键     | `weekKey`      | `weekKeys(now)[0]`，即本周周一的 `dayKey` | `weekId` / `weekStart` / `monday`    |
+| 周奖励       | `weeklyBonus`  | 本周达标天数够数时发一次的星光与宝石      | `weekReward` / `bonus` / `weekly`    |
 
 `dayKey` 是日结算的唯一键形式。禁止用毫秒时间戳当日期键，也禁止用 `Date` 对象 ——
 存档必须能 `JSON.stringify` 后原样读回。
@@ -78,10 +82,25 @@
 **周一为起点**，周日归到它前面那个周一 —— 洗澡卡的「本周 N/3」与 P3-b 的周奖励
 用的是同一份键。它只返回七个 `dayKey`，不返回「周一」这类星期文案（那是渲染的事）。
 
+`dayKeyAfter` 在 P5 识字落地（同一个文件，规格 `DAY-10` ~ `DAY-12`）。
+复习调度的「4 天后再出现」要它，古诗那一轮要的是同一个东西 —— 所以它是时间原语，
+不属于识字域。`days` 必须是整数，`2.5` 天没有对应的日期键，抛 `RangeError`。
+
 `lastFedAt` 在 P4 落进了存档（`pet.lastFedAt`，饱腹度衰减的基准）。
 **`lastPlayedAt` 仍是一个只在本表里存在的词，没有存档字段也没有读取点** ——
 开心度不随时间衰减（理由见 `docs/features/pet/doc.md`），所以它没有基准可言。
 留在表里是为了钉住命名（真要做开心度衰减时不会又冒出 `lastPlay`），不是待办事项。
+
+`allDone` 在 P3-b 落地，判据是**七条**核心打卡项（`wake` `brush-am` `literacy`
+`reading` `exercise` `vegetables` `poop`），不是「全部打卡项」——
+线上的八条里含 `bath`，而 `bath` 是唯一的周任务（`weeklyTarget: 3`），
+要求它每天打满与它自己的定义矛盾。理由见 `docs/features/reward/doc.md`。
+
+`weekKey` 是 `weekKeys(now)[0]`，本仓库不为它单独写函数 —— 周奖励的水位
+（`lastWeeklyBonusWeek`）与「本周达标了几天」用的是同一份七个键。
+P5 古诗的「本周三首」（`learningProgress.guoxue.weekly.weekKey`）是第三个用它的地方，
+所以全仓只有一个「本周」的口径 —— 线上的选诗用 `floor(天序号 / 7)`，
+而纪元 1970-01-01 是**周四**，于是线上有两套周边界。
 
 ## 动作
 
@@ -98,19 +117,64 @@
 
 ## 学习调度
 
-识字与古诗共用同一套「学 → 复习 → 掌握」调度，术语统一：
+识字与古诗共用同一套「学 → 复习 → 掌握」**术语**，但**调度实现各自独立**：
 
-| 中文     | 标识符       | 含义                               | 禁用词                                 |
-| -------- | ------------ | ---------------------------------- | -------------------------------------- |
-| 未学     | `unseen`     | 还没出现过                         | `new` / `todo` / `pending`             |
-| 学习中   | `learning`   | 学过但未掌握，会进入复习队列       | `progress` / `wip` / `doing`           |
-| 已掌握   | `mastered`   | 识字的「我认识」/ 古诗的「会背啦」 | `done` / `known` / `finished` / `pass` |
-| 错题     | `wrong`      | 判定为「还不太会」，提高出现频次   | `error` / `fail` / `miss`              |
-| 复习队列 | `reviewList` | 当次要复习的条目集合               | `queue` / `repeat` / `again`           |
-| 每日新量 | `dailyNew`   | 当天新引入的条目数上限             | `newCount` / `limit` / `quota`         |
+| 中文     | 标识符       | 含义                                 | 禁用词                                 |
+| -------- | ------------ | ------------------------------------ | -------------------------------------- |
+| 未学     | `unseen`     | 还没出现过                           | `new` / `todo` / `pending`             |
+| 学习中   | `learning`   | 学过但未掌握，会进入复习队列         | `progress` / `wip` / `doing`           |
+| 已掌握   | `mastered`   | 识字的「我认识」/ 古诗的「会背啦」   | `done` / `known` / `finished` / `pass` |
+| 错题     | `wrong`      | 判定为「还不太会」，提高出现频次     | `error` / `fail` / `miss`              |
+| 复习队列 | `reviewList` | 当次要复习的条目集合                 | `queue` / `repeat` / `again`           |
+| 每日新量 | `dailyNew`   | 当天新引入的条目数上限               | `newCount` / `limit` / `quota`         |
+| 复习档位 | `step`       | 连续答对的次数，答对进一档、答错回 0 | `level` / `stage` / `interval`         |
+| 到期日   | `due`        | 下次出现的 `dayKey`，空串即立刻      | `dueDate` / `nextReview` / `at`        |
+
+**「共用同一套调度」曾写在这里，是错的**（P5 识字这一轮逐条核对线上 bundle 后改的）：
+线上识字按字排 1/2/4/7/14/30 六档、有错误计数，古诗按周轮换 3 首、到期上限 2、
+只在首次学习时写一次调度、没有错误计数。两条路径在线上就是分开的，本仓库沿用分开 ——
+`step` 与 `due` 这两个词识字先用（`docs/features/literacy/doc.md`），
+古诗那一轮如果排期形状不同，用同样的词但可以有不同的档位表。
+
+**P5 古诗用的就是「同样的词、不同的档位表」**：识字六档跨 58 天、`step` 上界 `7`；
+古诗四档 `[1, 3, 7, 15]` 跨 26 天、`step` 上界 `5`（`docs/features/poem/doc.md`）。
+两者的流量差近五倍（每天 2 个字 vs 每周 3 首），所以档位疏密不同。
+古诗多一个 `mastered` 字段，与 `step` 到顶说的是同一件事 —— 刻意的冗余，
+因为 `utils/reward.js` 的成就判据不能 import `poem.js`。
+
+**P5 数学是第三个学习子模块，但它连词都不共用**：`step` 与 `due` 在数学里**不出现**
+（`docs/features/math/doc.md`）。数学是 30 道固定题，线上就没有复习调度，
+「明天再见」由「优先出还没答对过的题」自然完成 —— 没有间隔表，也就没有档位与到期日。
+所以 `utils/save.js` 里只有两个档位上界常量（`STEP_MAX` / `POEM_STEP_MAX`）而不是三个，
+数学那个 `MATH_STAGE_MAX = 6` 是**阶段数**，不是第三个上界。
+数学的「学过没有」落在 `mathRound` 的 `correct` 上，它是终态：答对过之后再答错也不退回
+（对照 `step` 答错回 `0`）—— 五岁孩子那 30 道题的目的是「都做对过一次」，不是保持熟练度。
 
 古诗的分级沿用线上数据包字段：`grade`（学段）与 `tier`（`required` 必背 / 拓展）。
-这两个是**数据字段名**，不改写成中文语义的新名字。
+这两个是**数据字段名**，不改写成中文语义的新名字。中文标签（`启蒙` / `一年级` /
+`二年级+`、`必背` / `拓展`）由 `utils/poem.js` 映射给页面，不进 `data/`。
+
+## 家长端
+
+| 中文         | 标识符           | 含义                                 | 禁用词                                   |
+| ------------ | ---------------- | ------------------------------------ | ---------------------------------------- |
+| 家长 PIN     | `pin`            | **明文 4 位数字**，进家长端要输对它  | `password` / `passcode` / `secret`       |
+| 每日目标     | `dailyGoal`      | 当天完成几项算达标，`1` ~ `12`       | `goal` / `target` / `dailyTarget`        |
+| 家长备注     | `note`           | 只在家长端显示的一段文字             | `memo` / `remark` / `comment`            |
+| PIN 错误次数 | `pinFails`       | 连续输错次数，验对即清零，`0` ~ `5`  | `retry` / `attempts` / `failCount`       |
+| PIN 冷却到期 | `pinLockedUntil` | 冷却结束的毫秒时间戳，`0` = 没在冷却 | `lockUntil` / `cooldown` / `bannedUntil` |
+
+`pin` **存明文**，与线上一致：存档是本机 storage 的一条记录，能读到 storage 的人
+能读到里面任何东西 —— 哈希只防孩子，而孩子看不到 storage。所以**忘了 PIN 只能清空数据**，
+不做找回（`docs/features/parent/doc.md`；`docs/vision.md` 那条 `待确认` 于 P7 拍成定论）。
+
+`pinFails` / `pinLockedUntil` 是**水位不是设置项**：由 `utils/parent.js` 的 `verifyPin`
+累加与清零，家长端没有输入框能改它们。它们是本仓库比线上多出来的一层节流
+（连错 5 次冷却 60 秒），线上输错无限次 —— 所以导入时两个都落 `0`（`IMPORT-16`）。
+冷却期内**不累加也不延长**，否则乱点能把 60 秒变成永久。
+
+`dailyGoal` 的上界 `12` 在 `normalizeSave` 里夹（`SAVE-19`）。线上那道
+`Math.min(12, …)` 只在设置页里，导入一份 `dailyGoal: 99` 的存档能绕过去。
 
 ## Spec ID 区名
 

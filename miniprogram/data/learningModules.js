@@ -21,7 +21,7 @@ export const LEARNING_MODULES = [
     name: '识字',
     icon: '🔤',
     desc: '每天2个新字',
-    page: '',
+    page: 'pages/literacy/literacy',
   },
   {
     module: 'reading',
@@ -35,14 +35,14 @@ export const LEARNING_MODULES = [
     name: '国学',
     icon: '📜',
     desc: '每周3首古诗',
-    page: '',
+    page: 'pages/poem/poem',
   },
   {
     module: 'math',
     name: '数学',
     icon: '🔢',
     desc: '每天2题+Boss',
-    page: '',
+    page: 'pages/math/math',
   },
   {
     module: 'english',
