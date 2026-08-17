@@ -301,3 +301,121 @@ describe('周奖励的水位与两个数组的元素收敛', () => {
     expect(defaultSave().achievements).toEqual([]);
   });
 });
+
+describe('habits 的元素收敛与兑换卡开关（P7 第二段）', () => {
+  it('[SAVE-20] habits 的脏元素被逐字段收敛，未知字段丢弃', () => {
+    const result = normalizeSave({
+      habits: [
+        {
+          id: 'wake',
+          name: '  ',
+          icon: '',
+          category: 'weird',
+          starReward: 99,
+          petFoodReward: -3,
+          enabled: 'yes',
+          core: 1,
+          sortOrder: -2,
+          subCategory: 'chinese',
+        },
+      ],
+    });
+
+    expect(result.habits).toEqual([
+      {
+        id: 'wake',
+        // 全空白的名字落 '未命名'：空白名字在首页是一格看不见的按钮
+        name: '未命名',
+        icon: '⭐',
+        // 坏 category 落 'habit' 而不是 'learning'：learning 类要配 module，
+        // 落过去会让一条没有 module 的任务进学习入口页的查找路径
+        category: 'habit',
+        frequency: 'daily',
+        // 上界 10 不是防溢出是防通胀；下界 0 是合法值（只记录不奖励）
+        starReward: 10,
+        petFoodReward: 0,
+        needsParentConfirm: false,
+        // 坏值落 true：不明不白地少一格比多一格更难发现（分母跟着变）
+        enabled: true,
+        sortOrder: 0,
+        // 1 不是 true：只有严格布尔 true 才算核心任务
+        core: false,
+      },
+    ]);
+    // 线上的 subCategory 本仓库没有这个概念，收敛时丢弃
+    expect('subCategory' in result.habits[0]).toBe(false);
+    // 合法值原样保留，不会被夹坏
+    expect(
+      normalizeSave({
+        habits: [
+          { id: 'wake', category: 'health', frequency: 'weekly', enabled: false, core: true },
+        ],
+      }).habits[0],
+    ).toMatchObject({ category: 'health', frequency: 'weekly', enabled: false, core: true });
+  });
+
+  it('[SAVE-21] id 坏的元素整条丢掉，重复 id 只留第一条', () => {
+    const result = normalizeSave({
+      habits: [
+        { id: '', name: '空 id' },
+        { id: 42, name: '非字符串 id' },
+        { name: '缺 id' },
+        '坏元素',
+        null,
+        { id: 'wake', name: '按时起床' },
+        { id: 'wake', name: '重复的那条' },
+      ],
+    });
+
+    // 没有 id 的任务打不了卡（checks 按 id 存）也改不了（saveHabit 按 id 找）；
+    // 重复 id 会共享同一个打卡状态，界面上是「点一个亮两个」
+    expect(result.habits).toHaveLength(1);
+    expect(result.habits[0].name).toBe('按时起床');
+  });
+
+  it('[SAVE-22] module 与 weeklyTarget 是条件字段，缺席保持缺席', () => {
+    const result = normalizeSave({
+      habits: [
+        { id: 'poem', category: 'learning', module: 'guoxue' },
+        { id: 'wake', category: 'habit', module: 'guoxue' },
+        { id: 'bath', frequency: 'weekly', weeklyTarget: 3 },
+        { id: 'brush', frequency: 'daily', weeklyTarget: 3 },
+      ],
+    });
+    const [poem, wake, bath, brush] = result.habits;
+
+    // 无条件补默认值会让 18 条里 13 条多一个 module: ''，
+    // 而 habitOf 用 find(item => item.module === module) 找任务
+    expect(poem.module).toBe('guoxue');
+    expect('module' in wake).toBe(false);
+    expect('weeklyTarget' in bath).toBe(true);
+    expect(bath.weeklyTarget).toBe(3);
+    expect('weeklyTarget' in brush).toBe(false);
+    // learning 类但 module 是坏值：也缺席，不落空串
+    expect(
+      'module' in normalizeSave({ habits: [{ id: 'x', category: 'learning' }] }).habits[0],
+    ).toBe(false);
+  });
+
+  it('[SAVE-23] rewardFlags 默认空对象，值收敛成布尔，未知 id 留着', () => {
+    // 空对象 = 三条全启用（缺键 = 启用），所以默认值里不预写三个 true
+    expect(defaultSave().rewardFlags).toEqual({});
+    expect(normalizeSave({}).rewardFlags).toEqual({});
+
+    expect(
+      normalizeSave({ rewardFlags: { snack: 0, cartoon: 'x', money: false, zzz: true } })
+        .rewardFlags,
+    ).toEqual({
+      snack: false,
+      cartoon: true,
+      money: false,
+      // 未知 id 原样留着：本层零 import，认不出哪个 id 登记过；
+      // 删了就丢数据，忽略它是 utils/reward.js 的事（REWARD-16）
+      zzz: true,
+    });
+
+    expect(normalizeSave({ rewardFlags: ['snack'] }).rewardFlags).toEqual({});
+    expect(normalizeSave({ rewardFlags: null }).rewardFlags).toEqual({});
+    expect(normalizeSave({ rewardFlags: 'snack' }).rewardFlags).toEqual({});
+  });
+});

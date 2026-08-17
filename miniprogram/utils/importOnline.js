@@ -9,8 +9,14 @@
  *
  * 本仓库新加的字段一律**不接**，落 `normalizeSave` 的默认值：
  * `pet.lastFedAt`（线上没有喂食冷却）、`parent.pinFails` / `parent.pinLockedUntil`
- * （线上 PIN 输错无限次、没有节流，见 docs/features/parent/doc.md）。
- * 同一条规律的三处执行 —— 线上没有的概念，导入时不猜。
+ * （线上 PIN 输错无限次、没有节流，见 docs/features/parent/doc.md）、
+ * `habits[].core`（线上没有「今日全勤名单」这个概念，落 `false`，见 `IMPORT-17`）。
+ * 同一条规律的四处执行 —— 线上没有的概念，导入时不猜。
+ *
+ * `rewardFlags` **整份不接**（`IMPORT-18`）：线上 `rewardRules` 里三条卡默认全
+ * `enabled: true`，映射过来恒等于「缺键 = 启用」那个默认值。
+ * **不接一个没有信息量的映射** —— 与上面三条的理由不同：那三个是线上没有数据，
+ * 这一个是线上有数据但搬过来一条信息都不增加。
  */
 
 import { defaultSave, normalizeSave } from './save.js';
@@ -239,6 +245,49 @@ function redemptionsFromOnline(value) {
 }
 
 /**
+ * 线上任务 → 本仓库的 `habits`（IMPORT-17）。
+ *
+ * **P7 第二段之前这里是 `habits: onlineJson.tasks` 整份透传**，于是导入一份线上存档，
+ * 18 条任务的产出值全读不到（`rewardOf` 读 `starReward`，线上叫 `starsReward`）、
+ * `core` 全都缺席（今日全勤永久不发）—— 合法但不生效。
+ *
+ * 三处不是恒等映射：
+ *
+ * 1. 两个产出值**改名**：`starsReward` → `starReward`、`foodPointsReward` → `petFoodReward`。
+ * 2. `subCategory` **不接**：线上只写不读，本仓库没有这个概念
+ *    （与 `data/defaultHabits.js` 不转抄它同一条）。
+ * 3. `core` 落 `false`：线上没有「今日全勤名单」这个概念。**不按 id 猜** ——
+ *    在这里写一张 id → `core` 的对照表，等于把 P3-b 刚从 `utils/` 搬到元素上的
+ *    那份平行名单又建了一遍（docs/glossary.md「`core` 只是一个字段，不是一份名单」）。
+ *    代价是导入后全勤要家长自己在家长端勾回来，而那正是家长端第二段给的入口。
+ *
+ * 其余字段同名原样带过去，夹范围与条件保留（`module` / `weeklyTarget`）
+ * 由 `normalizeSave` 的 `habits` 收敛做 —— 白名单只在那一处维护。
+ *
+ * @param {unknown} value 线上的 `tasks`
+ * @returns {object[]} 交给 normalizeSave 收敛
+ */
+function habitsFromOnline(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value.filter(isPlainObject).map((item) => ({
+    id: item.id,
+    name: item.name,
+    icon: item.icon,
+    category: item.category,
+    frequency: item.frequency,
+    starReward: item.starsReward,
+    petFoodReward: item.foodPointsReward,
+    needsParentConfirm: item.needsParentConfirm,
+    enabled: item.enabled,
+    sortOrder: item.sortOrder,
+    core: false,
+    module: item.module,
+    weeklyTarget: item.weeklyTarget,
+  }));
+}
+
+/**
  * 把线上导出的 JSON 转成本仓库的存档。
  *
  * @param {object} onlineJson 线上「导出数据」得到的对象（已 JSON.parse）
@@ -258,7 +307,7 @@ export function importOnlineSave(onlineJson) {
     childAvatar: profile.avatarEmoji,
     currency: rename(onlineJson.currency, CURRENCY_MAP),
     pet: rename(onlineJson.pet, PET_MAP),
-    habits: onlineJson.tasks,
+    habits: habitsFromOnline(onlineJson.tasks),
     days: onlineJson.dailyRecords,
     redemptions: redemptionsFromOnline(onlineJson.exchangeRecords),
     achievements: onlineJson.unlockedMedals,

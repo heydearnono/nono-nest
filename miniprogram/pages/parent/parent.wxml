@@ -28,9 +28,34 @@
     </button>
   </view>
 
-  <!-- 状态二：家长首页。设置段 + 数据段，第二三段的任务管理 / 看板 / 报告不在本轮 -->
+  <!-- 状态二：家长首页。设置 / 任务 / 数据三段，第三段的看板 / 报告 / 审批不在本轮 -->
   <block wx:else>
-    <view class="sec">
+    <!-- 三段切换只多一个 tab 字段（不新开页面，见 doc.md） -->
+    <view class="tabs">
+      <view
+        class="tabs__item {{tab === 'settings' ? 'tabs__item--on' : ''}}"
+        data-tab="settings"
+        bindtap="onTapTab"
+      >
+        设置
+      </view>
+      <view
+        class="tabs__item {{tab === 'tasks' ? 'tabs__item--on' : ''}}"
+        data-tab="tasks"
+        bindtap="onTapTab"
+      >
+        任务
+      </view>
+      <view
+        class="tabs__item {{tab === 'data' ? 'tabs__item--on' : ''}}"
+        data-tab="data"
+        bindtap="onTapTab"
+      >
+        数据
+      </view>
+    </view>
+
+    <view class="sec" wx:if="{{tab === 'settings'}}">
       <view class="sec__title">设置</view>
 
       <view class="field">
@@ -82,7 +107,144 @@
       <button class="save" bindtap="onTapSave">保存</button>
     </view>
 
-    <view class="sec">
+    <!-- 任务段：18 行 + 新增 + 三张兑换卡。列全部（含停用的），否则关掉就开不回来 -->
+    <view class="sec" wx:if="{{tab === 'tasks'}}">
+      <view class="sec__title">任务</view>
+
+      <!-- coreWarn 是提示不是门禁：家长看得见后果，仍然可以那么做 -->
+      <view class="warn" wx:if="{{coreWarnText}}">{{coreWarnText}}</view>
+      <view class="sec__now">计入今日全勤的有 {{tasks.coreCount}} 项</view>
+
+      <view class="task" wx:for="{{tasks.habits}}" wx:key="id">
+        <view class="task__row">
+          <view class="task__icon">{{item.icon}}</view>
+          <view class="task__name {{item.enabled ? '' : 'task__name--off'}}">{{item.name}}</view>
+
+          <!-- 上移 / 下移只在同类内移动，按钮按 first / last 置灰（utils 给的） -->
+          <view
+            class="task__move {{item.first ? 'task__move--off' : ''}}"
+            data-id="{{item.id}}"
+            data-delta="-1"
+            bindtap="onTapMove"
+          >
+            ↑
+          </view>
+          <view
+            class="task__move {{item.last ? 'task__move--off' : ''}}"
+            data-id="{{item.id}}"
+            data-delta="1"
+            bindtap="onTapMove"
+          >
+            ↓
+          </view>
+
+          <switch
+            class="task__switch"
+            checked="{{item.enabled}}"
+            data-id="{{item.id}}"
+            bindchange="onToggleEnabled"
+          />
+          <view class="task__more" data-id="{{item.id}}" bindtap="onTapExpand">
+            {{editing === item.id ? '收起' : '编辑'}}
+          </view>
+        </view>
+
+        <view class="edit" wx:if="{{editing === item.id}}">
+          <!-- 名字与图标只有 habit 类能改：另两类的显示名在别处定义（editable 由 utils 算） -->
+          <view class="edit__field">
+            <view class="edit__label">名字</view>
+            <input
+              class="edit__input"
+              maxlength="12"
+              disabled="{{!item.editable}}"
+              value="{{edit.name}}"
+              data-field="name"
+              bindinput="onInputEdit"
+            />
+          </view>
+          <view class="edit__field">
+            <view class="edit__label">图标</view>
+            <input
+              class="edit__input"
+              maxlength="2"
+              disabled="{{!item.editable}}"
+              value="{{edit.icon}}"
+              data-field="icon"
+              bindinput="onInputEdit"
+            />
+          </view>
+          <view class="edit__tip" wx:if="{{!item.editable}}">
+            这一类的名字与图标由学习 / 健康页定义，改了两处会不一致。
+          </view>
+
+          <view class="edit__field">
+            <view class="edit__label">⭐ 星光（0~10）</view>
+            <input
+              class="edit__input"
+              type="number"
+              maxlength="2"
+              value="{{edit.starReward}}"
+              data-field="starReward"
+              bindinput="onInputEdit"
+            />
+          </view>
+          <view class="edit__field">
+            <view class="edit__label">🍖 宠物粮（0~10）</view>
+            <input
+              class="edit__input"
+              type="number"
+              maxlength="2"
+              value="{{edit.petFoodReward}}"
+              data-field="petFoodReward"
+              bindinput="onInputEdit"
+            />
+          </view>
+
+          <view class="edit__field edit__field--row">
+            <view class="edit__label">计入今日全勤</view>
+            <switch checked="{{item.core}}" data-id="{{item.id}}" bindchange="onToggleCore" />
+          </view>
+
+          <button class="act" bindtap="onTapSaveHabit">保存这一条</button>
+        </view>
+      </view>
+
+      <!-- 新增只能加 habit 类：另两类加完没有页面能打上这一卡（doc.md 缺陷 9） -->
+      <view class="add">
+        <view class="add__label">加一条自律任务（只能加首页那九格那一类）</view>
+        <input
+          class="add__input"
+          maxlength="12"
+          placeholder="任务名字"
+          value="{{adding.name}}"
+          data-field="name"
+          bindinput="onInputAdd"
+        />
+        <input
+          class="add__input add__input--icon"
+          maxlength="2"
+          placeholder="图标（默认 ⭐）"
+          value="{{adding.icon}}"
+          data-field="icon"
+          bindinput="onInputAdd"
+        />
+        <button class="act" bindtap="onTapAddHabit">加一条</button>
+        <view class="add__tip">加错了可以停用 —— 任务不能删（历史打卡按 id 存）。</view>
+      </view>
+
+      <!-- 三张卡全都列（含停用的），家长只能开关，改价不做 -->
+      <view class="cards">
+        <view class="cards__label">兑换卡</view>
+        <view class="card" wx:for="{{tasks.rewards}}" wx:key="id">
+          <view class="card__icon">{{item.icon}}</view>
+          <view class="card__name {{item.enabled ? '' : 'card__name--off'}}">{{item.name}}</view>
+          <view class="card__cost">{{item.medalCost}}🏅</view>
+          <switch checked="{{item.enabled}}" data-id="{{item.id}}" bindchange="onToggleReward" />
+        </view>
+      </view>
+    </view>
+
+    <view class="sec" wx:if="{{tab === 'data'}}">
       <view class="sec__title">数据</view>
       <view class="sec__now"
         >这台机器上：{{state.summary.days}} 天记录 · {{state.summary.chars}} 字 ·

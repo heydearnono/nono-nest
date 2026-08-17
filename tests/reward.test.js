@@ -204,6 +204,41 @@ describe('奖励结算（REWARD）', () => {
     expect(rewardState({ ...save, redemptions: 42 }, DAY, NOW).redemptions).toEqual([]);
   });
 
+  it('[REWARD-16] 家长停用的卡不出现在 items 里；缺键 = 启用，未知 id 被忽略', () => {
+    const off = { ...defaultSave(), rewardFlags: { snack: false } };
+
+    expect(rewardState(off, DAY, NOW).items.map((item) => item.id)).toEqual(['cartoon', 'money']);
+
+    // 三种「没被明确停用」都是三条全在 —— 判 `!== false` 而不是判真值，
+    // 否则存档里还没有这个键的用户一张卡都换不了（SAVE-23）
+    for (const flags of [{}, { snack: true }, { cartoon: true }]) {
+      expect(rewardState({ ...defaultSave(), rewardFlags: flags }, DAY, NOW).items).toHaveLength(3);
+    }
+    expect(rewardState(defaultSave(), DAY, NOW).items).toHaveLength(3);
+
+    // 未知 id 在存档里留着（本层不删数据），但不会凭空多一张卡
+    const withUnknown = { ...defaultSave(), rewardFlags: { zzz: false } };
+    expect(rewardState(withUnknown, DAY, NOW).items.map((item) => item.id)).toEqual([
+      'snack',
+      'cartoon',
+      'money',
+    ]);
+  });
+
+  it('[REWARD-17] 卡被停用时 redeem 原样返回入参，不扣勋章不产生记录也不抛错', () => {
+    const save = { ...withMedal(seeded(), 9), rewardFlags: { snack: false } };
+    const next = redeem(save, DAY, 'snack', NOW);
+
+    // 停用是家长刚在另一个页面按下的开关，页面这一侧的列表可能还是上一次渲染的 ——
+    // 那是竞态不是编程错误，所以与 REWARD-06 同一策略（返回入参），不像 REWARD-07 抛错
+    expect(next).toBe(save);
+    expect(next.currency.medal).toBe(9);
+    expect(next.redemptions).toEqual([]);
+    expect(ledgerOf(next, DAY)).toEqual([]);
+    // 另外两条照常能换
+    expect(redeem(save, DAY, 'cartoon', NOW).currency.medal).toBe(6);
+  });
+
   it('rewardState 的顶部数据：今日几条核心项、本周达标几天、这周发过没有', () => {
     const save = withChecks(seeded(), WEEK.slice(0, 5), CORE.slice(0, 5));
     const state = rewardState(withChecks(save, [DAY], CORE), DAY, NOW);

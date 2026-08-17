@@ -7,6 +7,15 @@
  * 读失败就白屏，违反 docs/vision.md「什么算好」第 2 条（不清零、不惩罚），
  * 所以一律收敛到合法值。这与 utils/ 里其它纯函数对非法入参抛错的约定不同，
  * 是刻意的例外，理由写在 doc.md 里。
+ *
+ * `habits` 从 P7 第二段起收敛（在此之前是 `arr(raw.habits)` 整份透传）。
+ * **改的时点是它第一次有了写入路径**（家长端的 `saveHabit` / `addHabit` / `moveHabit`），
+ * 不是它的结构变清楚了 —— 结构从 P2 起就没变过。`days` 至今仍透传，
+ * 因为它的内部结构由各 feature 定义，本层认不出好坏。
+ *
+ * `rewardFlags` 是 P7 第二段新增的顶层键，**缺键 = 启用**：一张没被明确停用的卡
+ * 应该能换。所以读取侧一律判 `!== false` / `=== false`，**绝不判真值**
+ * （utils/reward.js，REWARD-16 / REWARD-17）。
  */
 
 /** 饱腹度与开心度的取值范围（线上原样，0-5 离散档位） */
@@ -56,6 +65,25 @@ const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
  * 坏数据宁愿留在待兑现列表里让家长看见，也不要悄悄变成「已经给过了」（SAVE-15）。
  */
 const REDEMPTION_STATUS = ['pending', 'done'];
+
+/**
+ * 自律任务的三个类别。坏值落 `'habit'`（第一个）：`habit` 类不需要 `module`，
+ * 而落 `'learning'` 会让一条没有 `module` 的任务进学习入口页的查找路径。
+ */
+const HABIT_CATEGORIES = ['habit', 'learning', 'health'];
+
+/**
+ * 自律任务的两个频次。坏值落 `'daily'`（第一个）：`weekly` 要配 `weeklyTarget`，
+ * 而那是个条件字段，坏值不该凭空造出一个「本周 N/undefined」。
+ */
+const HABIT_FREQUENCIES = ['daily', 'weekly'];
+
+/**
+ * 单次打卡产出的上界。**不是防溢出，是防通胀** —— 一次打卡 999 星光会让兑换
+ * 那条链失去参照（docs/features/parent/doc.md）。下界 `0` 是合法值：
+ * 产出落 0 就是「只记录不奖励」的一条任务。
+ */
+const HABIT_REWARD_MAX = 10;
 
 /**
  * 收敛成 [min, max] 区间内的整数。非数值、NaN、Infinity 一律取 fallback。
@@ -244,6 +272,100 @@ function redemptions(value) {
 }
 
 /**
+ * 收敛自律任务：一条任务一个元素，十一个字段加两个条件字段。
+ *
+ * 与 `redemptions` 有三处不同，都在 doc.md 里（`SAVE-20` ~ `SAVE-22`）：
+ *
+ * 1. **`id` 坏就整条丢掉**（`redemptions` 只把坏 `rewardId` 落空串）。没有 id 的任务
+ *    打不了卡（`days[key].checks` 按 id 存）、也改不了（`saveHabit` 按 id 找），
+ *    留着只是让首页多一个点不动的格子。**重复 id 只留第一条** ——
+ *    两条同 id 会共享同一个打卡状态，界面上是「点一个亮两个」。
+ * 2. **`module` / `weeklyTarget` 条件保留**：只在 `learning` / `weekly` 时存在，
+ *    缺席就让它缺席。无条件补默认值会让 18 条里 13 条多一个 `module: ''`，
+ *    而 `learning.js::habitOf` 用 `find(item => item.module === module)` 找任务。
+ * 3. **`enabled` 的坏值落 `true`**：与 `status` 落 `'pending'` 是同一种考量的相反方向。
+ *    不明不白地少一个打卡项比多一个更难发现 —— 首页少一格没人会注意，
+ *    但进度分母跟着变，`dayProgress` 显示的「今天 5/8」是错的却看不出错。
+ *
+ * 本层**只管形状不管名单**：哪几条是 `core`、哪些字段家长能改、`sortOrder` 怎么重排，
+ * 在 docs/features/habit/doc.md 与 docs/features/parent/doc.md。
+ *
+ * @param {unknown} value 原始的 `habits` 值
+ * @returns {object[]} 自律任务，顺序原样保留（显示次序看 `sortOrder`，不看数组下标）
+ */
+function habits(value) {
+  const seen = new Set();
+  const list = [];
+
+  for (const item of arr(value)) {
+    if (!isPlainObject(item)) continue;
+    if (typeof item.id !== 'string' || item.id === '') continue;
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+
+    const category = HABIT_CATEGORIES.includes(item.category) ? item.category : HABIT_CATEGORIES[0];
+    const frequency = HABIT_FREQUENCIES.includes(item.frequency)
+      ? item.frequency
+      : HABIT_FREQUENCIES[0];
+
+    // 全空白也落 `'未命名'`：一个空白名字在首页与家长端都是一格看不见的按钮
+    const name = str(item.name, '未命名');
+
+    const entry = {
+      id: item.id,
+      name: name.trim() === '' ? '未命名' : name,
+      icon: str(item.icon, '⭐'),
+      category,
+      frequency,
+      starReward: clampInt(item.starReward, 0, HABIT_REWARD_MAX, 1),
+      petFoodReward: clampInt(item.petFoodReward, 0, HABIT_REWARD_MAX, 1),
+      needsParentConfirm: item.needsParentConfirm === true,
+      enabled: item.enabled !== false,
+      sortOrder: clampInt(item.sortOrder, 0, Number.POSITIVE_INFINITY, 0),
+      core: item.core === true,
+    };
+
+    // 两个条件字段：**坏值也缺席**（不补空串、不补 0）。`module` 落空串会让
+    // `habitOf` 的 `find(item => item.module === module)` 在有人传空串时误匹配；
+    // `weeklyTarget` 落 0 会让洗澡卡显示「本周 3/0」
+    if (category === 'learning' && typeof item.module === 'string' && item.module !== '') {
+      entry.module = item.module;
+    }
+    if (frequency === 'weekly') {
+      const target = clampInt(item.weeklyTarget, 1, Number.POSITIVE_INFINITY, 0);
+      if (target >= 1) entry.weeklyTarget = target;
+    }
+
+    list.push(entry);
+  }
+
+  return list;
+}
+
+/**
+ * 收敛兑换卡的启用开关：`rewardId` → 布尔。
+ *
+ * **缺键 = 启用**，所以本层不补任何键 —— 默认就是空对象。值收敛成布尔
+ * （`0` → `false`、`'x'` → `true`），非对象整份落空对象（`SAVE-23`）。
+ *
+ * **未知 id 原样留着**：本层零 import，认不出哪个 id 在 data/rewards.js 里登记过。
+ * 留着不删与 `days` 的透传同一条 —— 本层不认得的键不删（删了就丢数据），
+ * 只是没人读；忽略未知 id 的是 utils/reward.js 的读取路径（`REWARD-16`）。
+ *
+ * @param {unknown} value 原始的 `rewardFlags` 值
+ * @returns {Record<string, boolean>} 开关表
+ */
+function rewardFlags(value) {
+  if (!isPlainObject(value)) return {};
+
+  const flags = {};
+  for (const [id, flag] of Object.entries(value)) {
+    flags[id] = Boolean(flag);
+  }
+  return flags;
+}
+
+/**
  * 收敛成就 id：只留字符串并去重。
  *
  * 它是 `includes` 判断「解锁过没有」的依据，重复项会让奖励中心的已解锁计数虚高（SAVE-16）。
@@ -281,6 +403,9 @@ export function defaultSave() {
     days: {},
     redemptions: [],
     achievements: [],
+    // 兑换卡的启用开关（rewardId -> 布尔）。**空对象 = 三条全启用**：
+    // 缺键当启用，所以这里不预先写三个 true —— 写了就得跟着 data/rewards.js 改（SAVE-23）
+    rewardFlags: {},
     // 上次发过周奖励的周键（weekKeys(now)[0]，即本周周一的 dayKey）。
     // 空串 = 从未发过：`'' !== 本周周键` 天然成立，第一周不需要特判（SAVE-14）
     lastWeeklyBonusWeek: '',
@@ -336,11 +461,12 @@ export function normalizeSave(raw) {
       mood: clampInt(rawPet.mood, PET_SCALE_MIN, PET_SCALE_MAX, base.pet.mood),
       lastFedAt: clampInt(rawPet.lastFedAt, 0, noMax, base.pet.lastFedAt),
     },
-    habits: arr(raw.habits),
+    habits: habits(raw.habits),
     // days 的内部结构由各 feature 自己定义，本层只保证原样存、原样取
     days: isPlainObject(raw.days) ? { ...raw.days } : {},
     redemptions: redemptions(raw.redemptions),
     achievements: achievements(raw.achievements),
+    rewardFlags: rewardFlags(raw.rewardFlags),
     // 只认日期键形状，其余落空串。落空串的后果是「这周可能再发一次周奖励」，
     // 而落一个乱码的后果是「永远发不出去」—— 宁愿多发一次也不要让奖励卡死（SAVE-14）
     lastWeeklyBonusWeek:

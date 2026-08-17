@@ -178,6 +178,11 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
     expect(result.childName).toBe('Nono');
     expect(result.habits).toHaveLength(1);
     expect(result.habits[0].id).toBe('wake');
+    // 只断言长度与 id 挡不住「元素里每个字段都是错的」：P7 第二段之前这里是整份透传，
+    // 上面两条全过而 starsReward 没改名、core 全缺席（教训与 P5 数学的 math_games 同形）。
+    // 元素映射至少要断言一个**改了名的字段**与一个**本仓库独有的字段**
+    expect(result.habits[0].starReward).toBe(1);
+    expect(result.habits[0].core).toBe(false);
     expect(result.days['2026-08-11'].completedTasks).toEqual({ wake: true });
     expect(result.redemptions[0].rewardId).toBe('snack');
     expect(result.achievements).toEqual(['early-bird']);
@@ -375,5 +380,79 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
     // 线上没有 parentSettings 时整块落默认值，不抛错
     expect(importOnlineSave({}).parent).toEqual(defaultSave().parent);
     expect(importOnlineSave({ parentSettings: 42 }).parent).toEqual(defaultSave().parent);
+  });
+
+  it('[IMPORT-17] 线上 tasks 逐元素映射：两个产出值改名、subCategory 不接、core 落 false', () => {
+    const result = importOnlineSave({
+      tasks: [
+        {
+          id: 'literacy',
+          name: '识字练习',
+          icon: '📖',
+          category: 'learning',
+          frequency: 'daily',
+          starsReward: 2,
+          foodPointsReward: 2,
+          subCategory: 'chinese',
+          needsParentConfirm: false,
+          enabled: true,
+          sortOrder: 4,
+          module: 'literacy',
+        },
+        {
+          id: 'bath',
+          name: '洗澡',
+          icon: '🛁',
+          category: 'health',
+          frequency: 'weekly',
+          weeklyTarget: 3,
+          starsReward: 1,
+          foodPointsReward: 1,
+        },
+      ],
+    });
+
+    expect(result.habits[0]).toEqual({
+      id: 'literacy',
+      name: '识字练习',
+      icon: '📖',
+      category: 'learning',
+      frequency: 'daily',
+      // 改名的两个：线上叫 starsReward / foodPointsReward
+      starReward: 2,
+      petFoodReward: 2,
+      needsParentConfirm: false,
+      enabled: true,
+      sortOrder: 4,
+      // 线上没有「今日全勤名单」这个概念，落 false —— 不按 id 猜
+      core: false,
+      module: 'literacy',
+    });
+    // 线上只写不读的字段不接
+    expect('subCategory' in result.habits[0]).toBe(false);
+    expect('starsReward' in result.habits[0]).toBe(false);
+    expect('foodPointsReward' in result.habits[0]).toBe(false);
+
+    // weeklyTarget 只在 frequency: 'weekly' 时保留（条件字段，收敛层管）
+    expect(result.habits[1].weeklyTarget).toBe(3);
+    expect('module' in result.habits[1]).toBe(false);
+
+    // 线上没有 tasks 时落空数组，不抛错
+    expect(importOnlineSave({}).habits).toEqual([]);
+    expect(importOnlineSave({ tasks: 42 }).habits).toEqual([]);
+  });
+
+  it('[IMPORT-18] rewardFlags 整份不接，线上 rewardRules 的 medalCost 不进存档', () => {
+    const result = importOnlineSave(ONLINE_EXPORT);
+
+    // 线上三条卡默认全 enabled: true，映射过来恒等于「缺键 = 启用」——
+    // 不接一个没有信息量的映射（与 pinFails 那三条不同：那是线上没有数据）
+    expect(result.rewardFlags).toEqual({});
+    // 就算线上明确停用了一条也不接：卡的定义留在 data/rewards.js，改价不做
+    expect(
+      importOnlineSave({ rewardRules: [{ id: 'snack', medalCost: 9, enabled: false }] })
+        .rewardFlags,
+    ).toEqual({});
+    expect(JSON.stringify(result)).not.toContain('medalCost":9');
   });
 });

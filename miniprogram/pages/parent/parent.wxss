@@ -1,4 +1,4 @@
-/* 家长端：蒙层是一屏居中的小卡，家长首页是两段带标题的列表。
+/* 家长端：蒙层是一屏居中的小卡，家长首页是三段带标题的列表（设置 / 任务 / 数据）。
    与其余页面刻意不同的一处：这里没有渐变、没有 emoji 大图、字号也小一号 ——
    这一页是给成年人看的，孩子进来只该看到那把锁。 */
 
@@ -60,6 +60,30 @@
 }
 
 /* ---- 状态二：家长首页 ---- */
+
+/* 三段切换。不是 tabBar（家长端藏在长按后面），只是页内的一条分段控件 */
+.tabs {
+  display: flex;
+  margin-top: 8rpx;
+  padding: 6rpx;
+  border-radius: 999rpx;
+  background-color: #fdf3f6;
+}
+
+.tabs__item {
+  flex: 1;
+  padding: 14rpx 0;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  text-align: center;
+  color: #b39aa5;
+}
+
+.tabs__item--on {
+  background-color: #fff;
+  color: var(--color-primary);
+  font-weight: 600;
+}
 
 .sec {
   margin-top: 24rpx;
@@ -181,4 +205,167 @@
   color: #b39aa5;
   text-align: center;
   text-decoration: underline;
+}
+
+/* ---- 任务段 ---- */
+
+/* coreWarn 的那句话。黄底不是红底：它是提示不是错误（家长可以那么做） */
+.warn {
+  margin-top: 16rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 16rpx;
+  background-color: #fff8e8;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #8a6a2f;
+}
+
+.task {
+  margin-top: 8rpx;
+  border-bottom: 2rpx solid #fdf3f6;
+}
+
+.task__row {
+  display: flex;
+  align-items: center;
+  padding: 18rpx 0;
+}
+
+.task__icon {
+  width: 48rpx;
+  font-size: 32rpx;
+}
+
+.task__name {
+  flex: 1;
+  font-size: 28rpx;
+}
+
+/* 停用的那条仍然列着（否则再也开不回来），只是灰掉加删除线 */
+.task__name--off {
+  color: #b39aa5;
+  text-decoration: line-through;
+}
+
+.task__move {
+  width: 48rpx;
+  font-size: 30rpx;
+  text-align: center;
+  color: var(--color-primary);
+}
+
+/* 边界外点了也没事（moveHabit 返回入参），置灰只是别让人白点 */
+.task__move--off {
+  color: #e7d5dd;
+}
+
+.task__switch {
+  transform: scale(0.7);
+}
+
+.task__more {
+  padding-left: 8rpx;
+  font-size: 24rpx;
+  color: var(--color-primary);
+}
+
+.edit {
+  padding: 8rpx 0 24rpx;
+}
+
+.edit__field {
+  margin-top: 16rpx;
+}
+
+.edit__field--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.edit__label {
+  font-size: 24rpx;
+  opacity: 0.7;
+}
+
+.edit__input {
+  margin-top: 6rpx;
+  padding: 12rpx;
+  border-radius: 12rpx;
+  background-color: #fdf3f6;
+  font-size: 28rpx;
+}
+
+.edit__tip {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: #b39aa5;
+}
+
+.add {
+  margin-top: 28rpx;
+  padding-top: 20rpx;
+  border-top: 2rpx dashed #f0dbe3;
+}
+
+.add__label {
+  font-size: 26rpx;
+  opacity: 0.7;
+}
+
+.add__input {
+  margin-top: 12rpx;
+  padding: 16rpx 12rpx;
+  border-radius: 12rpx;
+  background-color: #fdf3f6;
+  font-size: 28rpx;
+}
+
+.add__input--icon {
+  width: 240rpx;
+}
+
+.add__tip {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #b39aa5;
+}
+
+.cards {
+  margin-top: 28rpx;
+  padding-top: 20rpx;
+  border-top: 2rpx dashed #f0dbe3;
+}
+
+.cards__label {
+  font-size: 26rpx;
+  opacity: 0.7;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 0;
+}
+
+.card__icon {
+  width: 48rpx;
+  font-size: 32rpx;
+}
+
+.card__name {
+  flex: 1;
+  font-size: 28rpx;
+}
+
+.card__name--off {
+  color: #b39aa5;
+  text-decoration: line-through;
+}
+
+.card__cost {
+  padding-right: 16rpx;
+  font-size: 26rpx;
+  color: var(--color-primary);
 }

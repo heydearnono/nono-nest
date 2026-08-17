@@ -3,7 +3,8 @@
 - 区名：`REWARD`（奖励项与兑换流程、奖励结算入口）、`ACHV`（成就判定与解锁）
 - 模块：`miniprogram/data/rewards.js`、`miniprogram/data/achievements.js`、
   `miniprogram/utils/reward.js`、`miniprogram/pages/reward/`
-- 状态：已完成
+- 状态：已完成。**P7 第二段追加了兑换卡的启用守卫**（`REWARD-16` / `REWARD-17`），
+  开关本身（顶层键 `rewardFlags`）与家长端的入口在 `docs/features/parent/doc.md`
 - 关联愿景：`docs/vision.md` P3 的第二段（P3-b）
 - 顺带产出：`POINT` 区追加今日全勤与周奖励（`POINT-20` ~ `POINT-31`）、
   `data/defaultHabits.js` 的元素加 `core` 字段、`checkAwardAndGrow` 成为唯一结算入口
@@ -162,10 +163,17 @@ export const REWARDS = [
 ];
 ```
 
-线上元素还有 `needsConfirm` 与 `enabled`，三条取值全相同（`true` / `true`）且
-本轮的兑换流程里没有分支读它们 —— 是死字段，不转抄（与 `defaultHabits.js` 不转抄
-`subCategory` / `module` 同一条）。奖励项的启用与改价要等 P7，届时 `REWARDS`
-要么进存档要么加字段，那时再说。
+线上元素还有 `needsConfirm` 与 `enabled`，三条取值全相同（`true` / `true`）。
+**`needsConfirm` 是死字段**（线上只出现在那份常量字面量里，没有任何读取点），
+不转抄 —— 与 `defaultHabits.js` 不转抄 `subCategory` 同一条。
+
+**`enabled` 不是死字段，P3-b 这句话写错了。** 线上兑换页 `filter(e => e.enabled)`
+过滤一遍，`requestExchange` 里再守一次（「这个奖励暂时不可用」）——
+本轮只是**没做家长端的启用开关**，所以三条恒 `true`、读它没有意义。
+**P7 第二段把开关做了**，落点不是给 `REWARDS` 加字段、也不是把三条卡搬进存档，
+而是一个独立的顶层键 `rewardFlags`（`rewardId` → 布尔，缺键 = 启用，`SAVE-23`）：
+卡的定义留在常量里（`medalCost` 不可写，**改价不做**），存档只存那个布尔。
+`rewardState` 与 `redeem` 各加一处守卫（`REWARD-16` / `REWARD-17`）。
 
 ### 十一条成就全登记，缺模块的进度恒 0
 
@@ -308,6 +316,31 @@ unlockAchievements(save, key, now) -> save   // settleDay 的第三步，单独�
 与 `items[].affordable`、`poopIcons[].current` 同一条分工：**页面不自己比、也不自己映射文案**，
 否则「两处状态文案不一致」这种 bug 要等到 P7 加了第三个状态才暴露。
 
+### 兑换卡的启用守卫（`REWARD-16` / `REWARD-17`，P7 第二段）
+
+`rewardFlags` 落在存档顶层（形状与默认值见 `docs/features/storage/doc.md`），
+`utils/reward.js` 这一侧加两处读取守卫，**照抄线上那两处**：
+
+```js
+// rewardState：停用的卡不出现在 items 里
+items: REWARDS.filter((item) => save.rewardFlags?.[item.id] !== false).map(…)
+// redeem：停用时原样返回入参（不抛错）
+if (save.rewardFlags?.[rewardId] === false) return save;
+```
+
+**两处都判 `!== false` / `=== false` 而不是判真值** —— 缺键的含义是启用，
+写成 `if (!flags[id])` 会让还没有这个键的存档一张卡都换不了。
+
+**`redeem` 停用时返回入参，不抛 `RangeError`。** 与「未登记 id 抛错」区分开：
+未登记 id 只可能是代码写错（按钮是 `rewardState` 渲染的），
+而停用是**家长刚在另一个页面按下的开关**，孩子那一侧的页面可能还是旧数据 ——
+那是竞态，不是编程错误。处置与勋章不够（`REWARD-06`）同形：原样返回，页面比对象同一性。
+
+**过滤放在 `rewardState` 而不放在 `data/rewards.js`**：常量不知道存档。
+而家长端那一侧要列**全部三条**（含停用的，否则停用之后就再也开不回来了），
+所以它不复用 `rewardState().items`，自己读 `REWARDS` 与 `rewardFlags`
+（`parentTasks`，`PARENT-51` ~ `53`）。
+
 ### 页面：奖励中心
 
 | 区块     | 内容                                                                |
@@ -337,23 +370,30 @@ unlockAchievements(save, key, now) -> save   // settleDay 的第三步，单独�
 
 ### 兑换（`REWARD`）
 
-| Spec ID   | 输入                                          | 期望输出                                                                                 |
-| --------- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| REWARD-01 | 空存档 `rewardState`                          | `items` 三条（`snack` / `cartoon` / `money`），`affordable` 全 `false`，`redemptions` 空 |
-| REWARD-02 | `medal` 为 `3` 时 `rewardState`               | `snack` / `cartoon` 的 `affordable` 为 `true`，`money` 为 `false`                        |
-| REWARD-03 | `redeem(save, key, 'snack', now)`             | `medal` -2，`redemptions` 多一条 `status: 'pending'` 且在数组最前                        |
-| REWARD-04 | 同上                                          | 流水追加一条 `{ type: 'spend', medal: 2, reason: '兑换：零食一次' }`                     |
-| REWARD-05 | 同上                                          | 记录里 `name` / `icon` / `medalCost` 是快照，不回查 `data/rewards.js`                    |
-| REWARD-06 | 勋章为 `1` 时 `redeem(..., 'snack', ...)`     | 原样返回入参（对象同一性），不产生记录也不写流水                                         |
-| REWARD-07 | `redeem` 传未登记的 `rewardId`                | 抛 `RangeError`                                                                          |
-| REWARD-08 | `redeem` 的 `now` 非有限数                    | 抛 `TypeError`                                                                           |
-| REWARD-09 | 连续兑换 `snack` 两次（勋章足够）             | 两条记录，最新在前；勋章共扣 4                                                           |
-| REWARD-10 | `redeem` 后检查入参 `save`                    | 未被改动（返回的是新对象）                                                               |
-| REWARD-11 | 打满七条核心项后 `settleDay`                  | 顺序是全勤 → 周奖励 → 成就：同一次调用里 `daily-3` 的进度已含今天                        |
-| REWARD-12 | 无事可做时 `settleDay`                        | 原样返回入参（对象同一性）                                                               |
-| REWARD-13 | 用 `checkAwardAndGrow` 打上第七条核心项       | 同一次调用里 `medal` 已 +1（结算挂在打卡入口里，页面不必再调）                           |
-| REWARD-14 | `settleDay` 的 `now` 非有限数                 | 抛 `TypeError`                                                                           |
-| REWARD-15 | 存档里 `redemptions` 有脏元素时 `rewardState` | 不抛错，脏元素按 `SAVE-15` 收敛后显示                                                    |
+| Spec ID   | 输入                                                                                                       | 期望输出                                                                                                                   |
+| --------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| REWARD-01 | 空存档 `rewardState`                                                                                       | `items` 三条（`snack` / `cartoon` / `money`），`affordable` 全 `false`，`redemptions` 空                                   |
+| REWARD-02 | `medal` 为 `3` 时 `rewardState`                                                                            | `snack` / `cartoon` 的 `affordable` 为 `true`，`money` 为 `false`                                                          |
+| REWARD-03 | `redeem(save, key, 'snack', now)`                                                                          | `medal` -2，`redemptions` 多一条 `status: 'pending'` 且在数组最前                                                          |
+| REWARD-04 | 同上                                                                                                       | 流水追加一条 `{ type: 'spend', medal: 2, reason: '兑换：零食一次' }`                                                       |
+| REWARD-05 | 同上                                                                                                       | 记录里 `name` / `icon` / `medalCost` 是快照，不回查 `data/rewards.js`                                                      |
+| REWARD-06 | 勋章为 `1` 时 `redeem(..., 'snack', ...)`                                                                  | 原样返回入参（对象同一性），不产生记录也不写流水                                                                           |
+| REWARD-07 | `redeem` 传未登记的 `rewardId`                                                                             | 抛 `RangeError`                                                                                                            |
+| REWARD-08 | `redeem` 的 `now` 非有限数                                                                                 | 抛 `TypeError`                                                                                                             |
+| REWARD-09 | 连续兑换 `snack` 两次（勋章足够）                                                                          | 两条记录，最新在前；勋章共扣 4                                                                                             |
+| REWARD-10 | `redeem` 后检查入参 `save`                                                                                 | 未被改动（返回的是新对象）                                                                                                 |
+| REWARD-11 | 打满七条核心项后 `settleDay`                                                                               | 顺序是全勤 → 周奖励 → 成就：同一次调用里 `daily-3` 的进度已含今天                                                          |
+| REWARD-12 | 无事可做时 `settleDay`                                                                                     | 原样返回入参（对象同一性）                                                                                                 |
+| REWARD-13 | 用 `checkAwardAndGrow` 打上第七条核心项                                                                    | 同一次调用里 `medal` 已 +1（结算挂在打卡入口里，页面不必再调）                                                             |
+| REWARD-14 | `settleDay` 的 `now` 非有限数                                                                              | 抛 `TypeError`                                                                                                             |
+| REWARD-15 | 存档里 `redemptions` 有脏元素时 `rewardState`                                                              | 不抛错，脏元素按 `SAVE-15` 收敛后显示                                                                                      |
+| REWARD-16 | `rewardFlags: { snack: false }` 时 `rewardState`；以及 `rewardFlags: {}` / 缺该键 / 含未知 id `zzz: false` | `items` 只有 `cartoon` / `money` 两条；后三种情况 `items` 都是三条（**缺键 = 启用**），未知 id 被忽略、不出现在 `items` 里 |
+| REWARD-17 | `rewardFlags: { snack: false }` 且勋章足够时 `redeem(..., 'snack', ...)`                                   | 原样返回入参（对象同一性），不扣勋章、不产生记录、**不抛错**（停用是家长刚按下的开关，不是编程错误）                       |
+
+`REWARD-16` / `REWARD-17` 是 P7 第二段补的，照抄线上兑换页那两处守卫
+（过滤 + `requestExchange` 里再守一次）。为什么两条都要：只有过滤没有守卫，
+家长在另一页停用后孩子那一侧的旧列表还能点得动 —— 线上两处都有，
+本仓库把它当成一对来钉。
 
 `REWARD-06` 与 `REWARD-07` 是一对刻意的不一致：勋章不够是**正常状态**（页面把按钮置灰），
 传错 id 是**编程错误**。同一个函数两种错误策略，理由见 `AGENTS.md` 第 5 节第 6 条。
@@ -412,7 +452,12 @@ unlockAchievements(save, key, now) -> save   // settleDay 的第三步，单独�
   申请即扣勋章的设计让本轮不需要它们，`status: 'done'` 的写入路径也留给 P7。
 - **不做撤销兑换。** 同上，且「说出口就算数」对 5 岁孩子是更清楚的规则。
 - **不做家长端改奖励项与阈值。** `REWARDS` 与 `ACHIEVEMENTS` 是常量，不进存档。
-  线上的 `rewardRules` 因此**仍不导入**（`docs/features/storage/doc.md` 的「不接」名单）。
+  **P7 第二段部分兑现了这一条**：家长端做了兑换卡的**启用/停用**
+  （顶层键 `rewardFlags` + `REWARD-16` / `REWARD-17`），但 `name` / `icon` /
+  `medalCost` 与成就阈值仍然不可改 —— 存档里只多了一个布尔，卡的定义还在常量里。
+  线上的 `rewardRules` 因此**永久不接**：本仓库只要它的 `enabled`，
+  而那三条卡在线上默认全启用，映射过来恒等于「缺键 = 启用」这个默认值
+  （`IMPORT-18`，理由见 `docs/features/storage/doc.md`）。
 - **不做 `medalProgress` 的导入。** 永久不接：本仓库的进度每次现算，没有对应字段。
 - **不做勋章有效期与过期清理。** 勋章只增不减（除兑换），不做「季末清零」这类惩罚性规则。
 - **不做成就的弹层与动画。** 只有 `wx.showToast`。弹层要图片与动画层，

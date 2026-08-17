@@ -156,13 +156,36 @@ P5 古诗的「本周三首」（`learningProgress.guoxue.weekly.weekKey`）是�
 
 ## 家长端
 
-| 中文         | 标识符           | 含义                                 | 禁用词                                   |
-| ------------ | ---------------- | ------------------------------------ | ---------------------------------------- |
-| 家长 PIN     | `pin`            | **明文 4 位数字**，进家长端要输对它  | `password` / `passcode` / `secret`       |
-| 每日目标     | `dailyGoal`      | 当天完成几项算达标，`1` ~ `12`       | `goal` / `target` / `dailyTarget`        |
-| 家长备注     | `note`           | 只在家长端显示的一段文字             | `memo` / `remark` / `comment`            |
-| PIN 错误次数 | `pinFails`       | 连续输错次数，验对即清零，`0` ~ `5`  | `retry` / `attempts` / `failCount`       |
-| PIN 冷却到期 | `pinLockedUntil` | 冷却结束的毫秒时间戳，`0` = 没在冷却 | `lockUntil` / `cooldown` / `bannedUntil` |
+| 中文         | 标识符           | 含义                                           | 禁用词                                           |
+| ------------ | ---------------- | ---------------------------------------------- | ------------------------------------------------ |
+| 家长 PIN     | `pin`            | **明文 4 位数字**，进家长端要输对它            | `password` / `passcode` / `secret`               |
+| 每日目标     | `dailyGoal`      | 当天完成几项算达标，`1` ~ `12`                 | `goal` / `target` / `dailyTarget`                |
+| 家长备注     | `note`           | 只在家长端显示的一段文字                       | `memo` / `remark` / `comment`                    |
+| PIN 错误次数 | `pinFails`       | 连续输错次数，验对即清零，`0` ~ `5`            | `retry` / `attempts` / `failCount`               |
+| PIN 冷却到期 | `pinLockedUntil` | 冷却结束的毫秒时间戳，`0` = 没在冷却           | `lockUntil` / `cooldown` / `bannedUntil`         |
+| 任务启用     | `enabled`        | 布尔。停用的任务不出现在首页，也不计进分母     | `active` / `visible` / `on` / `disabled`         |
+| 核心任务     | `core`           | 布尔。是否算进「今日全勤」那份名单             | `required` / `isMain` / `important`              |
+| 任务顺序     | `sortOrder`      | 正整数，首页与家长端的显示次序                 | `order` / `index` / `position` / `seq`           |
+| 兑换卡开关   | `rewardFlags`    | 存档顶层键，`rewardId` → 布尔，**缺键 = 启用** | `rewardEnabled` / `disabledRewards` / `switches` |
+
+后四条是 P7 第二段登记的，都是**家长端才有写入路径**的字段（`utils/parentTasks.js`），
+所以登记在本节而不是「实体」——`habit` 的其余字段见 `docs/features/habit/doc.md`。
+
+**`enabled` 与「删除」不是一回事。** 家长端**不做删除任务**（`PARENT` 区范围外）：
+停用是软删除，`days` 里历史打卡记录仍指着那个 id。硬删会让
+`utils/habit.js::findHabit` 抛 `RangeError` —— 取消一条已删任务的打卡就白屏。
+
+**`core` 只是一个字段，不是一份名单。** P3-b 刻意把全勤名单从 `utils/` 的平行数组
+搬到任务元素上（家长停用一条核心任务后，平行数组会让全勤永久不可达）。
+因此导入线上存档时 `core` 全落 `false`（`IMPORT-17`）——
+在 `importOnline.js` 里写一张 id → `core` 的对照表，等于把那份名单又建了一遍。
+
+**`sortOrder` 只经 `moveHabit` 改**，家长端没有输入框直接填数字：
+每次上移/下移都把整个数组重排成连续的 `1..N`（按 `habit` → `learning` → `health`）。
+线上 `addTask` 用 `tasks.length + 1` 当序号，删过任务之后必然与既有的撞。
+
+**`rewardFlags` 是「缺键 = 启用」**，不是「缺键 = 停用」：写成后者会让存档里
+还没有这个键的用户一张卡都换不了。读取侧因此一律判 `!== false`（`REWARD-16`）。
 
 `pin` **存明文**，与线上一致：存档是本机 storage 的一条记录，能读到 storage 的人
 能读到里面任何东西 —— 哈希只防孩子，而孩子看不到 storage。所以**忘了 PIN 只能清空数据**，

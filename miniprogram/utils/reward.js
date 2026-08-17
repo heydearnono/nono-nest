@@ -190,6 +190,18 @@ function progressOf(achievement, save, key, now) {
 }
 
 /**
+ * 这张卡现在能不能换。**判 `!== false` 而不是判真值**：`rewardFlags` 的语义是
+ * 「缺键 = 启用」（`SAVE-23`），判真值会让存档里还没有这个键的用户一张卡都换不了。
+ *
+ * @param {object} save 存档
+ * @param {string} rewardId 奖励项 id
+ * @returns {boolean}
+ */
+function isRewardEnabled(save, rewardId) {
+  return save.rewardFlags?.[rewardId] !== false;
+}
+
+/**
  * 奖励中心的读取入口：货币、三张兑换卡、兑换记录、今日全勤与本周进度。
  *
  * **不抛错**（渲染宽容）：核心任务被删、`redemptions` 有脏元素都只影响数值。
@@ -207,8 +219,13 @@ export function rewardState(save, key, now) {
   return {
     medal,
     gem: save.currency?.gem ?? 0,
+    // 家长停用的卡不出现在这里（REWARD-16）。家长端要列全部三条，
+    // 所以它**不复用这份 items**，而是自己从 REWARDS 列（PARENT-53）
     // affordable 在这里算好，页面不自己比 medal >= medalCost
-    items: REWARDS.map((reward) => ({ ...reward, affordable: medal >= reward.medalCost })),
+    items: REWARDS.filter((reward) => isRewardEnabled(save, reward.id)).map((reward) => ({
+      ...reward,
+      affordable: medal >= reward.medalCost,
+    })),
     redemptions: redemptionsOf(save).map((item) => ({
       ...item,
       statusText: STATUS_TEXT[item.status] ?? STATUS_TEXT.pending,
@@ -260,6 +277,8 @@ export function achievementState(save, key, now) {
  * 既不提示也不删记录）。申请即扣同时让本轮不需要写没有调用点的审批函数。
  *
  * 勋章不够时**原样返回入参**（正常状态，页面按 `affordable` 置灰）；
+ * **家长停用了这张卡时也原样返回入参**（`REWARD-17`）—— 停用是家长刚在另一个页面
+ * 按下的开关，页面这一侧的列表可能还是上一次渲染的，那是竞态不是编程错误。
  * 未登记的 `rewardId` 抛 `RangeError`（编程错误）。两种错误策略的理由见
  * `AGENTS.md` 第 5 节第 6 条。
  *
@@ -270,13 +289,14 @@ export function achievementState(save, key, now) {
  * @param {string} key 日期键
  * @param {string} rewardId 奖励项 id
  * @param {number} now 毫秒时间戳
- * @returns {object} 新存档；勋章不够时返回入参本身
+ * @returns {object} 新存档；勋章不够或卡被停用时返回入参本身
  */
 export function redeem(save, key, rewardId, now) {
   const reward = findReward(rewardId);
   if (!Number.isFinite(now)) {
     throw new TypeError(`now 必须是有限数的毫秒时间戳，收到 ${now}`);
   }
+  if (!isRewardEnabled(save, rewardId)) return save;
   if ((save.currency?.medal ?? 0) < reward.medalCost) return save;
 
   const record = {

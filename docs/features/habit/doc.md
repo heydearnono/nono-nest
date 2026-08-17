@@ -54,9 +54,9 @@ nono 线上已有的打卡记录是按这些 id 存的，改 id 等于丢历史�
   weeklyTarget: 3,            // 仅 frequency === 'weekly'（只有 bath 是 3）
   starReward: 1,              // 打卡产出，P2 不发放，读取点在 POINT 区（P3）
   petFoodReward: 1,
-  needsParentConfirm: false,  // 家长端确认，P7 才读
+  needsParentConfirm: false,  // 线上字段，全仓零读取点，P7 也没接（见范围外）
   enabled: true,              // 家长可停用，停用后不出现在首页
-  sortOrder: 1,               // 家长端排序依据，1 起连续
+  sortOrder: 1,               // 家长端排序依据，1 起连续。只经 moveHabit 改
   core: true,                 // 是否计入今日全勤，P3-b 追加，见 features/point
   module: 'literacy',         // 仅 learning：指向学习子页，P5 才读
 }
@@ -74,6 +74,15 @@ nono 线上已有的打卡记录是按这些 id 存的，改 id 等于丢历史�
 还启用不启用」是同一份数据。名单为什么不含线上的 `bath` 见
 `docs/features/reward/doc.md`；判定与发放在 `docs/features/point/doc.md`（`POINT-20` ~ `POINT-31`），
 本区只保证字段存在。
+
+**这个元素在 P2 与 P7 第二段之间换了一次身份：从「转抄常量的形状」变成
+「有写入路径的数据」。** P2 ~ P6 期间它的每一条都来自 `data/defaultHabits.js`
+或一份导入的 JSON，`normalizeSave` 对 `habits` 只有一句 `arr(raw.habits)`；
+P7 第二段给了它三个写入入口（`saveHabit` / `addHabit` / `moveHabit`），
+于是元素收敛落进了存储层（`SAVE-20` ~ `SAVE-22`，`docs/features/storage/doc.md`），
+线上字段名的映射也从「整份透传」变成逐字段映射（`IMPORT-17`）。
+**本区仍然只定义字段的含义**：形状与默认值归 `SAVE`，
+哪些字段家长能改、`sortOrder` 怎么重排归 `PARENT`（`docs/features/parent/doc.md`）。
 
 ### 当天记录（`days[dayKey]`）
 
@@ -202,8 +211,15 @@ storage 键名 `nono-save`，单条记录存整份存档（与线上 IndexedDB �
   `docs/features/point/doc.md`（`POINT-20` ~ `POINT-31`），名单是任务自己的 `core` 字段
   且收敛成**七条**（去掉了线上的 `bath`，理由见 `docs/features/reward/doc.md`）。
   本区只保证 `core` 字段存在，不写判定。
-- **不做家长端增删改任务。** `enabled` / `sortOrder` / `needsParentConfirm` 三个字段
-  P2 只读不写，写入路径在 `PARENT`（P7）。
+- ~~**不做家长端增删改任务。**~~ P7 第二段做了**改与增**，没做删：
+  `enabled` / `sortOrder` / `name` / `icon` / `starReward` / `petFoodReward` / `core`
+  在 `utils/parentTasks.js` 有了写入路径（`saveHabit` / `addHabit` / `moveHabit`，
+  `PARENT-24` ~ `PARENT-53`），新增只能加 `category: 'habit'` 那一类。
+  **删除是明确不做，不是「以后再做」**：停用已经覆盖了它的用途，而 `days` 里的
+  历史打卡按 id 存 —— 硬删之后 `findHabit` 抛 `RangeError`，
+  取消一条已删任务的打卡会白屏（线上就是硬删，见 `docs/features/parent/doc.md` 缺陷 7）。
+  **`needsParentConfirm` 至今没有读取点，也没有输入框**：给一个没人读的字段做输入框，
+  是给家长一个改了不生效的旋钮。它只作为线上字段留在元素里。
 - **不做 `frequency: 'weekly'` 的周目标计数。** `bath` 的 `weeklyTarget: 3` 先存着不用，
   P2 把它和日常项一样按天记 —— 周计数要先有「周」的键，那是 `POINT` 的周奖励一起做。
   P6 已落地，但落的只是**显示**：`utils/dayKey.js` 的 `weekKeys` 给出本周七个键，
