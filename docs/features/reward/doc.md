@@ -4,7 +4,9 @@
 - 模块：`miniprogram/data/rewards.js`、`miniprogram/data/achievements.js`、
   `miniprogram/utils/reward.js`、`miniprogram/pages/reward/`
 - 状态：已完成。**P7 第二段追加了兑换卡的启用守卫**（`REWARD-16` / `REWARD-17`），
-  开关本身（顶层键 `rewardFlags`）与家长端的入口在 `docs/features/parent/doc.md`
+  开关本身（顶层键 `rewardFlags`）与家长端的入口在 `docs/features/parent/doc.md`；
+  **P7 第三段追加了第三个状态 `'cancelled'` 的文案**（`REWARD-18`），
+  审批与驳回的写入路径在同一份 `parent/doc.md`（`PARENT-72` ~ `77`）
 - 关联愿景：`docs/vision.md` P3 的第二段（P3-b）
 - 顺带产出：`POINT` 区追加今日全勤与周奖励（`POINT-20` ~ `POINT-31`）、
   `data/defaultHabits.js` 的元素加 `core` 字段、`checkAwardAndGrow` 成为唯一结算入口
@@ -142,8 +144,10 @@ redemptions: [
 「说出口就算数」对 5 岁孩子是更清楚的规则，而撤销入口本身也要等 P7。
 
 `status` 的 `'done'` 本轮**没有写入路径**，但它不是死值：`IMPORT-12` 把线上
-`approved` 的历史记录映射成 `'done'`，导入后兑换记录页要能显示它。P7 加上「家长确认」
-按钮时它才有第二个来源。
+`approved` 的历史记录映射成 `'done'`，导入后兑换记录页要能显示它。
+**P7 第三段给了它第二个来源**：家长端的「✅ 已给她了」按钮
+（`resolveRedemption`，`PARENT-72`），同一轮还加了第三个取值 `'cancelled'`
+（`SAVE-24` / `REWARD-18`）。
 
 `name` / `icon` / `medalCost` 是**快照**（线上同样）：家长将来改了奖励的名字或价格，
 历史记录仍显示当时兑的是什么、花了多少。所以 `redeem` 把这三个值写进记录，
@@ -341,7 +345,32 @@ if (save.rewardFlags?.[rewardId] === false) return save;
 所以它不复用 `rewardState().items`，自己读 `REWARDS` 与 `rewardFlags`
 （`parentTasks`，`PARENT-51` ~ `53`）。
 
-### 页面：奖励中心
+### 第三个状态 `'cancelled'`（`REWARD-18`，P7 第三段）
+
+家长端第三段给了 `redemptions` 一个写入路径（`resolveRedemption`），
+`status` 因此有第三个取值（形状归 `SAVE-24`，写入行为归 `PARENT-72` ~ `77`）。
+本区只加一行文案：
+
+```js
+const STATUS_TEXT = { pending: '待家长兑现', done: '已兑现', cancelled: '已取消' };
+```
+
+**这一行是上文那句预言的兑现。** `rewardState` 那一段写着「页面不自己比、也不自己映射
+文案，否则『两处状态文案不一致』这种 bug 要等到 P7 加了第三个状态才暴露」——
+本轮就是那一轮。文案确实集中在这一处，所以加一行就够；而 `statusText` 那句
+`STATUS_TEXT[item.status] ?? STATUS_TEXT.pending` 里的 `??` **恰好是不加这一行时
+不会报错的原因**：一条 `'cancelled'` 的记录会被标成「待家长兑现」，
+家长看到自己刚驳回的那条还在待兑现列表的文案里。
+**规律：给枚举加取值时，要去数谁在穷举它 —— 用 `??` 兜底的地方不会报错，只会说错话。**
+
+**文案是「已取消」不是「已退回」，因为同一个状态有两种来历。** 家长驳回的那些退了勋章
+（`PARENT-73` 走 `postLedger`），而 `IMPORT-12` 从线上映射来的 `rejected` 记录
+**从来没被扣过勋章**（线上批准时才扣，本仓库 P3-b 改成了申请即扣）——
+导入不退款，也无款可退。一个状态两种来历，文案只能说两边都成立的那件事。
+
+**`rewardState().redemptions` 仍然三种状态全列**，不过滤 `'cancelled'`：
+兑换记录是流水性质的东西，「申请过又被退回」也是发生过的事。
+线上把 `rejected` 的记录留在列表里（`bB()` 只筛 `pending` 进待审批卡），这一点跟。
 
 | 区块     | 内容                                                                |
 | -------- | ------------------------------------------------------------------- |
@@ -389,11 +418,17 @@ if (save.rewardFlags?.[rewardId] === false) return save;
 | REWARD-15 | 存档里 `redemptions` 有脏元素时 `rewardState`                                                              | 不抛错，脏元素按 `SAVE-15` 收敛后显示                                                                                      |
 | REWARD-16 | `rewardFlags: { snack: false }` 时 `rewardState`；以及 `rewardFlags: {}` / 缺该键 / 含未知 id `zzz: false` | `items` 只有 `cartoon` / `money` 两条；后三种情况 `items` 都是三条（**缺键 = 启用**），未知 id 被忽略、不出现在 `items` 里 |
 | REWARD-17 | `rewardFlags: { snack: false }` 且勋章足够时 `redeem(..., 'snack', ...)`                                   | 原样返回入参（对象同一性），不扣勋章、不产生记录、**不抛错**（停用是家长刚按下的开关，不是编程错误）                       |
+| REWARD-18 | `redemptions` 三条记录的 `status` 分别为 `'pending'` / `'done'` / `'cancelled'` 时 `rewardState`           | 三条的 `statusText` 分别是「待家长兑现」/「已兑现」/**「已取消」**；三条**都在** `redemptions` 里（不过滤已取消的）        |
 
 `REWARD-16` / `REWARD-17` 是 P7 第二段补的，照抄线上兑换页那两处守卫
 （过滤 + `requestExchange` 里再守一次）。为什么两条都要：只有过滤没有守卫，
 家长在另一页停用后孩子那一侧的旧列表还能点得动 —— 线上两处都有，
 本仓库把它当成一对来钉。
+
+`REWARD-18` 是 P7 第三段补的，只有一条而不是两条：`'cancelled'` 的**形状**归
+`SAVE-24`、**写入**归 `PARENT-72` ~ `77`，本区只负责那一句文案。
+它同时断言「三条都在」，挡住一个很自然的实现：把已取消的从 `redemptions` 里过滤掉 ——
+兑换记录是流水性质的东西，「申请过又被退回」也是发生过的事。
 
 `REWARD-06` 与 `REWARD-07` 是一对刻意的不一致：勋章不够是**正常状态**（页面把按钮置灰），
 传错 id 是**编程错误**。同一个函数两种错误策略，理由见 `AGENTS.md` 第 5 节第 6 条。
@@ -444,13 +479,25 @@ if (save.rewardFlags?.[rewardId] === false) return save;
 
 ## 范围外
 
-- **不做贴纸（`STICKER`）。** 140 张是一份与字库同量级的数据资产，还要给纯函数注入
-  随机源、加一个收藏册页面 —— 够单独一轮。勋章此刻已经有兑换这个消耗口，
-  动机链不缺它就闭不上。
-- **不做家长审批与驳回。** 没有审批入口（家长端 P7），写 `approveExchange` /
-  `rejectExchange` 就是不可达代码（`AGENTS.md` 第 5 节第 4 条）。
-  申请即扣勋章的设计让本轮不需要它们，`status: 'done'` 的写入路径也留给 P7。
-- **不做撤销兑换。** 同上，且「说出口就算数」对 5 岁孩子是更清楚的规则。
+- ~~**不做贴纸（`STICKER`）。**~~ **`STICKER` 一轮做了**：140 张贴纸、
+  `utils/sticker.js` 两个纯函数、第 13 个页面 `pages/sticker/`
+  （`docs/features/sticker/doc.md`）。当初挂账的理由里**只有一条不成立了**：
+  「给纯函数注入随机源」——那一轮的结论是**不注入**，用 `fnv1a(\`${dayKey}|${已抽总次数}\`)
+  当种子现算，与 `utils/math.js::shuffleSeed` 同一条（`utils/` 不读 `Math.random()`）。
+  另外两条（数据资产的量级、单独一个收藏册页面）成立，所以它确实值一整轮。
+  兑现之后**勋章有两个消耗口**：兑换三张卡与抽贴纸 —— 本区那句
+  「动机链不缺它就闭不上」仍然对，贴纸加的是**纯收集乐趣**那一路，不是必需的一环。
+  奖励中心因此多一个「🎨 贴纸乐园」入口按钮（**不内联那 140 格**，判据见
+  `docs/features/sticker/doc.md`「页面」一节：两屏共享的数据只有勋章余额一个数）。
+- ~~**不做家长审批与驳回。**~~ **P7 第三段做了**：`parentTasks.js::resolveRedemption`
+  一个函数两个动作（`PARENT-72` ~ `77`）。确认是纯粹的 `'pending' → 'done'`
+  状态迁移、**货币一分不动**（申请那一刻已经扣过了）；驳回落第三个状态
+  `'cancelled'` 并**退回勋章**（走 `postLedger`，不直接改 `currency`）。
+  线上分成 `approveExchange` / `rejectExchange` 两个函数，而其中一个漏了状态检查
+  （已批准、已扣款的记录还能再被驳回）—— 一个入口比两个入口各查一次可靠。
+- ~~**不做撤销兑换。**~~ 部分兑现：**家长能驳回并退回勋章**（上一条），
+  但**孩子那一侧仍然不能撤销自己的申请** —— 「说出口就算数」对 5 岁孩子是更清楚的规则，
+  而「点错了」这件事有家长这条出路就够了。
 - **不做家长端改奖励项与阈值。** `REWARDS` 与 `ACHIEVEMENTS` 是常量，不进存档。
   **P7 第二段部分兑现了这一条**：家长端做了兑换卡的**启用/停用**
   （顶层键 `rewardFlags` + `REWARD-16` / `REWARD-17`），但 `name` / `icon` /

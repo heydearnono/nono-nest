@@ -10,29 +10,48 @@
 
 ## 实体
 
-| 中文       | 标识符        | 含义                                                                     | 禁用词                                           |
-| ---------- | ------------- | ------------------------------------------------------------------------ | ------------------------------------------------ |
-| 存档       | `save`        | 落到 storage 的持久化数据，全局单例                                      | `profile` / `record` / `db` / `state`            |
-| 孩子昵称   | `childName`   | 家长设置的显示名，默认 `nono`                                            | `userName` / `nickname` / `kidName`              |
-| 打卡项     | `checkItem`   | 首页可打卡的一项（识字、刷牙……）                                         | `task`（`task` 专指家长端可编辑的自律任务）      |
-| 自律任务   | `habit`       | 家长端可增删的习惯项，是 `checkItem` 的来源                              | `routine` / `todo` / `chore`                     |
-| 奖励       | `reward`      | 可用勋章兑换的项（零食、动画片、零花钱）                                 | `prize` / `gift` / `item`                        |
-| 兑换记录   | `redemption`  | 一次兑换请求及其状态                                                     | `order` / `exchange` / `log`                     |
-| 兑换状态   | `status`      | `pending` 等家长兑现 / `done` 已兑现                                     | `state` / `stage` / `phase`                      |
-| 贴纸       | `sticker`     | 抽取获得的收藏物，有类别与稀有度                                         | `card` / `badge` / `collectible`                 |
-| 成就       | `achievement` | 达成条件后解锁，一次性                                                   | `medal`（`medal` 是货币）/ `trophy` / `badge`    |
-| 宠物       | `pet`         | 陪伴主角，全局唯一，形象可更换                                           | `animal` / `creature` / `nono`（nono 是孩子）    |
-| 宠物状态   | `petState`    | 某一时刻宠物的完整可观测状态                                             | `status` / `petInfo` / `petData`                 |
-| 汉字       | `character`   | 汉字库中的一条（含拼音、组词、例句）                                     | `word` / `hanzi` / `char`（`char` 是它的字段名） |
-| 古诗       | `poem`        | 古诗库中的一首                                                           | `poetry` / `verse` / `shi`                       |
-| 数学阶段   | `mathStage`   | 六个阶段之一（数感 → 钟表人民币），五道全答对过即升一阶，上限 6、不降阶  | `level` / `chapter` / `unit`                     |
-| 关卡       | `mathRound`   | 30 道固定题之一（每阶段 4 普通 + 1 Boss），`correct` 是终态              | `question` / `quiz` / `game`                     |
-| 打卡流水   | `ledgerEntry` | 一次货币增减的记录，挂在当天的存档下                                     | `transaction` / `history` / `log`                |
-| 学习子模块 | `module`      | 五个学习子页之一：`literacy` / `reading` / `guoxue` / `math` / `english` | `subject` / `subCategory` / `lesson`             |
-| 学习记录   | `learningLog` | 当天某个学习子模块填写的内容（书名、时长……）                             | `detail` / `entry` / `form`                      |
-| 共读方式   | `mode`        | 阅读的两种方式：`together` 亲子共读 / `solo` 独立阅读                    | `type` / `kind` / `style`                        |
-| 健康记录   | `healthLog`   | 当天的健康记录（饮食、便便、洗澡、运动共十一个字段）                     | `healthData` / `healthRecord` / `daily`          |
-| 便便心情   | `poopIcon`    | 三个 emoji 之一：😊 😐 😣，选一个即记了一次便便                          | `poopMood` / `emoji` / `feeling`                 |
+| 中文       | 标识符              | 含义                                                                     | 禁用词                                           |
+| ---------- | ------------------- | ------------------------------------------------------------------------ | ------------------------------------------------ |
+| 存档       | `save`              | 落到 storage 的持久化数据，全局单例                                      | `profile` / `record` / `db` / `state`            |
+| 孩子昵称   | `childName`         | 家长设置的显示名，默认 `nono`                                            | `userName` / `nickname` / `kidName`              |
+| 打卡项     | `checkItem`         | 首页可打卡的一项（识字、刷牙……）                                         | `task`（`task` 专指家长端可编辑的自律任务）      |
+| 自律任务   | `habit`             | 家长端可增删的习惯项，是 `checkItem` 的来源                              | `routine` / `todo` / `chore`                     |
+| 奖励       | `reward`            | 可用勋章兑换的项（零食、动画片、零花钱）                                 | `prize` / `gift` / `item`                        |
+| 兑换记录   | `redemption`        | 一次兑换请求及其状态                                                     | `order` / `exchange` / `log`                     |
+| 兑换状态   | `status`            | `pending` 等家长兑现 / `done` 已兑现                                     | `state` / `stage` / `phase`                      |
+| 贴纸       | `sticker`           | 抽取获得的收藏物，有类别与稀有度，共 140 张                              | `card` / `badge` / `collectible`                 |
+| 贴纸类别   | `category`          | 六类，按图鉴段序：`animal` `food` `nature` `cute` `star` `fantasy`       | `type` / `group` / `kind` / `tag`                |
+| 稀有度     | `rarity`            | 三档：`common` / `uncommon` / `rare`                                     | `level` / `grade` / `tier` / `quality`           |
+| 收藏册     | `stickerCollection` | 存档顶层键，`stickerId` → 抽到过几次，**键存在即拥有**                   | `stickers` / `album` / `owned` / `inventory`     |
+| 免费抽     | `free`              | `source` 的取值之一（每天一次、不花勋章），另一个是 `medal`              | `daily` / `gift` / `bonus` / `freeDraw`          |
+| 成就       | `achievement`       | 达成条件后解锁，一次性                                                   | `medal`（`medal` 是货币）/ `trophy` / `badge`    |
+| 宠物       | `pet`               | 陪伴主角，全局唯一，形象可更换                                           | `animal` / `creature` / `nono`（nono 是孩子）    |
+| 宠物状态   | `petState`          | 某一时刻宠物的完整可观测状态                                             | `status` / `petInfo` / `petData`                 |
+| 汉字       | `character`         | 汉字库中的一条（含拼音、组词、例句）                                     | `word` / `hanzi` / `char`（`char` 是它的字段名） |
+| 古诗       | `poem`              | 古诗库中的一首                                                           | `poetry` / `verse` / `shi`                       |
+| 数学阶段   | `mathStage`         | 六个阶段之一（数感 → 钟表人民币），五道全答对过即升一阶，上限 6、不降阶  | `level` / `chapter` / `unit`                     |
+| 关卡       | `mathRound`         | 30 道固定题之一（每阶段 4 普通 + 1 Boss），`correct` 是终态              | `question` / `quiz` / `game`                     |
+| 打卡流水   | `ledgerEntry`       | 一次货币增减的记录，挂在当天的存档下                                     | `transaction` / `history` / `log`                |
+| 学习子模块 | `module`            | 五个学习子页之一：`literacy` / `reading` / `guoxue` / `math` / `english` | `subject` / `subCategory` / `lesson`             |
+| 学习记录   | `learningLog`       | 当天某个学习子模块填写的内容（书名、时长……）                             | `detail` / `entry` / `form`                      |
+| 共读方式   | `mode`              | 阅读的两种方式：`together` 亲子共读 / `solo` 独立阅读                    | `type` / `kind` / `style`                        |
+| 健康记录   | `healthLog`         | 当天的健康记录（饮食、便便、洗澡、运动共十一个字段）                     | `healthData` / `healthRecord` / `daily`          |
+| 便便心情   | `poopIcon`          | 三个 emoji 之一：😊 😐 😣，选一个即记了一次便便                          | `poopMood` / `emoji` / `feeling`                 |
+
+贴纸那四条（`category` / `rarity` / `stickerCollection` / `free`）是 `STICKER` 一轮登记的。
+`category` 与 `rarity` 都是**数据字段名**，与古诗的 `grade` / `tier` 同一条处理：
+中文标签（`动物` / `美食` / `自然` / `可爱` / `星星` / `奇幻`、`普通` / `稀有` / `超稀有`）
+由 `utils/sticker.js` 映射给页面，
+`data/stickers.js` 里只有英文取值。**`rarity` 的禁用词含 `tier`** —— 古诗已经用掉那个词
+表示「必背 / 拓展」，两个域各自的分级不共用一个标识符。
+
+**`stickerCollection` 是「键存在即拥有」**，值只用来数「抽到过几次」：所以 `0` 不是
+「拥有 0 张」而是脏数据，`normalizeSave` 收敛时整条丢掉（`SAVE-25`）。它与
+`rewardFlags` 是同一类顶层键（`id` → 值的表、未知 id 原样留着），但**不变式的方向相反**：
+`rewardFlags` 缺键有含义（= 启用），`stickerCollection` 缺键就是没有。
+
+`free` 与 `medal` 是 `drawSticker` 的 `source` 入参的两个取值，**不是两个动作** ——
+抽贴纸只有一个动词 `draw`（见「动作」一节），两条路径的区别只在扣不扣勋章。
 
 ## 货币与数值
 
@@ -156,20 +175,29 @@ P5 古诗的「本周三首」（`learningProgress.guoxue.weekly.weekKey`）是�
 
 ## 家长端
 
-| 中文         | 标识符           | 含义                                           | 禁用词                                           |
-| ------------ | ---------------- | ---------------------------------------------- | ------------------------------------------------ |
-| 家长 PIN     | `pin`            | **明文 4 位数字**，进家长端要输对它            | `password` / `passcode` / `secret`               |
-| 每日目标     | `dailyGoal`      | 当天完成几项算达标，`1` ~ `12`                 | `goal` / `target` / `dailyTarget`                |
-| 家长备注     | `note`           | 只在家长端显示的一段文字                       | `memo` / `remark` / `comment`                    |
-| PIN 错误次数 | `pinFails`       | 连续输错次数，验对即清零，`0` ~ `5`            | `retry` / `attempts` / `failCount`               |
-| PIN 冷却到期 | `pinLockedUntil` | 冷却结束的毫秒时间戳，`0` = 没在冷却           | `lockUntil` / `cooldown` / `bannedUntil`         |
-| 任务启用     | `enabled`        | 布尔。停用的任务不出现在首页，也不计进分母     | `active` / `visible` / `on` / `disabled`         |
-| 核心任务     | `core`           | 布尔。是否算进「今日全勤」那份名单             | `required` / `isMain` / `important`              |
-| 任务顺序     | `sortOrder`      | 正整数，首页与家长端的显示次序                 | `order` / `index` / `position` / `seq`           |
-| 兑换卡开关   | `rewardFlags`    | 存档顶层键，`rewardId` → 布尔，**缺键 = 启用** | `rewardEnabled` / `disabledRewards` / `switches` |
+| 中文         | 标识符           | 含义                                                | 禁用词                                           |
+| ------------ | ---------------- | --------------------------------------------------- | ------------------------------------------------ |
+| 家长 PIN     | `pin`            | **明文 4 位数字**，进家长端要输对它                 | `password` / `passcode` / `secret`               |
+| 每日目标     | `dailyGoal`      | 当天完成几项算达标，`1` ~ `12`                      | `goal` / `target` / `dailyTarget`                |
+| 家长备注     | `note`           | 只在家长端显示的一段文字                            | `memo` / `remark` / `comment`                    |
+| PIN 错误次数 | `pinFails`       | 连续输错次数，验对即清零，`0` ~ `5`                 | `retry` / `attempts` / `failCount`               |
+| PIN 冷却到期 | `pinLockedUntil` | 冷却结束的毫秒时间戳，`0` = 没在冷却                | `lockUntil` / `cooldown` / `bannedUntil`         |
+| 任务启用     | `enabled`        | 布尔。停用的任务不出现在首页，也不计进分母          | `active` / `visible` / `on` / `disabled`         |
+| 核心任务     | `core`           | 布尔。是否算进「今日全勤」那份名单                  | `required` / `isMain` / `important`              |
+| 任务顺序     | `sortOrder`      | 正整数，首页与家长端的显示次序                      | `order` / `index` / `position` / `seq`           |
+| 兑换卡开关   | `rewardFlags`    | 存档顶层键，`rewardId` → 布尔，**缺键 = 启用**      | `rewardEnabled` / `disabledRewards` / `switches` |
+| 已取消兑换   | `'cancelled'`    | `redemptions[].status` 的第三个取值，家长驳回后落它 | `rejected` / `refused` / `denied` / `refunded`   |
+| 达标日       | `qualified`      | 当天核心任务完成 ≥ `5` 条（周奖励与看板同一个判据） | `passed` / `ok` / `success` / `goodDay`          |
+| 有没有记录   | `hasRecord`      | 看板日历那一格当天在 `days` 里有没有键              | `empty` / `isNull` / `missing`                   |
 
-后四条是 P7 第二段登记的，都是**家长端才有写入路径**的字段（`utils/parentTasks.js`），
-所以登记在本节而不是「实体」——`habit` 的其余字段见 `docs/features/habit/doc.md`。
+`enabled` / `core` / `sortOrder` / `rewardFlags` 四条是 P7 第二段登记的，都是**家长端才有
+写入路径**的字段（`utils/parentTasks.js`），所以登记在本节而不是「实体」——
+`habit` 的其余字段见 `docs/features/habit/doc.md`。
+
+`'cancelled'` / `qualified` / `hasRecord` 三条是 P7 第三段登记的，**只有第一条是存档字段**：
+后两个是 `utils/parentReport.js` 的**读取输出**，存档里没有对应的键，每次进看板现算
+（`qualified` 由 `isQualifiedDay` 判、`hasRecord` 只看 `days` 里有没有那个键）。
+它们仍登记在家长端这一节 —— 词是给家长端的界面用的，别的地方不出现这两个字。
 
 **`enabled` 与「删除」不是一回事。** 家长端**不做删除任务**（`PARENT` 区范围外）：
 停用是软删除，`days` 里历史打卡记录仍指着那个 id。硬删会让
@@ -199,6 +227,21 @@ P5 古诗的「本周三首」（`learningProgress.guoxue.weekly.weekKey`）是�
 `dailyGoal` 的上界 `12` 在 `normalizeSave` 里夹（`SAVE-19`）。线上那道
 `Math.min(12, …)` 只在设置页里，导入一份 `dailyGoal: 99` 的存档能绕过去。
 
+最后三条是 P7 第三段登记的。**`'cancelled'` 不叫 `'rejected'`**，尽管线上那个字段
+就叫 `rejected`：本仓库这个状态有两种来历，家长驳回的那些**退过勋章**，
+而从线上映射来的 `rejected` 记录**从来没被扣过**（线上批准时才扣，本仓库申请即扣）。
+「已取消」是两边都成立的那句话，「已退回」不是（`SAVE-24` / `REWARD-18` / `IMPORT-12`）。
+
+**「达标日」全仓只有一个判据**，就是 `utils/point.js::isQualifiedDay`。线上有三套口径
+都叫「本周」（核心项 5/8、任意一项完成、自律+学习的 60%），同一份数据能给出
+`2` / `7` / `false` 三个答案。所以看板的「本周达标 N 天」与周奖励发不发是同一个数 ——
+家长看到 `4/5` 就知道还差一天（`PARENT-59`）。
+
+**`hasRecord` 区分的是「没有数据」与「一项都没完成」。** 存档里没有「上周三有哪些任务
+启用着」这笔数据，所以任何一天的分母只能是今天那个数 —— 这是近似值，
+而近似值要标出来它是近似值：没有记录的那天页面显示「—」，不显示 `0/18`
+（线上显示后者，`PARENT-58`）。
+
 ## Spec ID 区名
 
 规格 ID 格式 `<AREA>-<NN>`，已分配的区名：
@@ -211,7 +254,7 @@ P5 古诗的「本周三首」（`learningProgress.guoxue.weekly.weekKey`）是�
 | `HABIT`    | 自律任务与打卡（含取消、连续天数）               |
 | `POINT`    | 星光 / 宝石 / 宠物粮 / 勋章的产出与消耗          |
 | `REWARD`   | 奖励项与兑换流程、兑换状态流转                   |
-| `STICKER`  | 贴纸抽取、稀有度权重、免费次数                   |
+| `STICKER`  | 贴纸抽取、稀有度权重、免费次数、图鉴收藏         |
 | `ACHV`     | 成就达成判定与解锁                               |
 | `PET`      | 宠物等级、形象、喂食与陪玩                       |
 | `FULLNESS` | 饱腹度计算与衰减                                 |

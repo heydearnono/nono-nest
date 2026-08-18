@@ -32,8 +32,15 @@ import {
 /** 连续天数往前查的天数上限，与 `habitStreak` 同一个数（给读取路径一个 O(30) 的上界） */
 const STREAK_MAX_DAYS = 30;
 
-/** 兑换记录的状态文案。页面不自己映射，见 doc.md */
-const STATUS_TEXT = { pending: '待家长兑现', done: '已兑现' };
+/**
+ * 兑换记录的状态文案。页面不自己映射，见 doc.md。
+ *
+ * `'cancelled'` 是 P7 第三段加的（`REWARD-18`）。**文案是「已取消」不是「已退回」** ——
+ * 这个状态有两种来历：本仓库家长驳回的那些退过勋章，而 `IMPORT-12` 从线上映射来的
+ * `rejected` 记录从来没被扣过（线上批准时才扣）。一个状态两种来历，
+ * 文案只能说两边都成立的那件事。
+ */
+const STATUS_TEXT = { pending: '待家长兑现', done: '已兑现', cancelled: '已取消' };
 
 /**
  * 找奖励项定义，找不到就抛错。

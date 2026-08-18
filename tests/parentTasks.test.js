@@ -6,17 +6,22 @@ import {
   addHabit,
   moveHabit,
   parentTasks,
+  resolveRedemption,
   saveHabit,
   toggleReward,
 } from '../miniprogram/utils/parentTasks.js';
-import { listCore } from '../miniprogram/utils/point.js';
+import { dayEarned, listCore } from '../miniprogram/utils/point.js';
 import { rewardState } from '../miniprogram/utils/reward.js';
 import { defaultSave } from '../miniprogram/utils/save.js';
 
-// 规格来源：docs/features/parent/doc.md（`PARENT` 区第二段，`PARENT-24` ~ `53`）
+// 规格来源：docs/features/parent/doc.md（`PARENT` 区第二段 `PARENT-24` ~ `53`、
+// 第三段 `PARENT-72` ~ `77`）
 // 按 AGENTS.md 第 13 条：parentTasks 的规格断言读取入口的输出，
-// 三个写函数的规格断言存档里落了什么。
+// 四个写函数的规格断言存档里落了什么。
 const NOW = new Date(2026, 7, 14, 20, 0, 0, 0).getTime();
+
+/** 兑换审批那几条用的日期键（NOW 那天） */
+const KEY = '2026-08-14';
 
 /** 一份已填好默认任务表的存档（18 条，sortOrder 1..18） */
 function seeded() {
@@ -493,5 +498,105 @@ describe('toggleReward', () => {
     for (const id of ['toy', '', undefined, 42, null]) {
       expect(() => toggleReward(save, id)).toThrow(RangeError);
     }
+  });
+});
+
+/** 一条兑换记录 */
+function redemption(at, status, medalCost = 3) {
+  return { at, rewardId: 'snack', name: '小零食', icon: '🍬', medalCost, status };
+}
+
+/** 三条记录 + 20 枚勋章的存档 */
+function withRedemptions(list) {
+  return { ...seeded(), currency: { star: 0, gem: 0, petFood: 0, medal: 20 }, redemptions: list };
+}
+
+describe('resolveRedemption', () => {
+  it('[PARENT-72] 兑现：status 落 done，货币一分不动、当天流水不加行', () => {
+    const save = withRedemptions([redemption(NOW - 1000, 'pending')]);
+    const next = resolveRedemption(save, KEY, NOW - 1000, 'done', NOW);
+
+    expect(next.redemptions[0].status).toBe('done');
+    // 申请那一刻 redeem 已经 postLedger('spend') 扣过了，这里只回答「东西给了没有」
+    expect(next.currency).toEqual(save.currency);
+    expect(next.days?.[KEY]?.ledger ?? []).toEqual([]);
+    expect(dayEarned(next, KEY)).toEqual({ star: 0, gem: 0, petFood: 0, medal: 0 });
+    // 入参不动
+    expect(save.redemptions[0].status).toBe('pending');
+  });
+
+  it('[PARENT-73] 驳回：status 落 cancelled，退回 3 枚且当天流水多一条 earn', () => {
+    const save = withRedemptions([redemption(NOW - 1000, 'pending', 3)]);
+    const next = resolveRedemption(save, KEY, NOW - 1000, 'cancelled', NOW);
+
+    expect(next.redemptions[0].status).toBe('cancelled');
+    expect(next.currency.medal).toBe(23);
+
+    // 退款走 postLedger，不直接改 currency —— 否则账与余额悄悄分叉
+    // （point.js 头注释：save.currency 只可能被 point.js 改，而它每次改都追加一条流水）
+    const ledger = next.days[KEY].ledger;
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toEqual({
+      at: NOW,
+      type: 'earn',
+      reason: '退回：小零食',
+      star: 0,
+      gem: 0,
+      petFood: 0,
+      medal: 3,
+    });
+    // 退款落在**驳回那一天**的流水里，不是申请那一天
+    expect(dayEarned(next, KEY).medal).toBe(3);
+  });
+
+  it('[PARENT-74] 已经不是 pending 时原样返回入参（对象同一性）', () => {
+    for (const status of ['done', 'cancelled']) {
+      const save = withRedemptions([redemption(NOW - 1000, status)]);
+      // 家长在两处各点一下是竞态，不是编程错误（与 redeem 遇到停用卡同一条）
+      expect(resolveRedemption(save, KEY, NOW - 1000, 'done', NOW)).toBe(save);
+      expect(resolveRedemption(save, KEY, NOW - 1000, 'cancelled', NOW)).toBe(save);
+    }
+  });
+
+  it('[PARENT-75] at 找不到抛 RangeError', () => {
+    const save = withRedemptions([redemption(NOW - 1000, 'pending')]);
+
+    // 按钮的 at 全部来自 parentTasks 的输出，传别的值只可能是代码写错
+    for (const at of [NOW, 0, undefined, null, '2026-08-14']) {
+      expect(() => resolveRedemption(save, KEY, at, 'done', NOW)).toThrow(RangeError);
+    }
+    expect(() => resolveRedemption(seeded(), KEY, NOW - 1000, 'done', NOW)).toThrow(RangeError);
+  });
+
+  it('[PARENT-76] action 非法抛 RangeError；now 非有限数抛 TypeError', () => {
+    const save = withRedemptions([redemption(NOW - 1000, 'pending')]);
+
+    // 页面只有两个按钮
+    for (const action of ['pending', 'rejected', '', undefined, null, 1]) {
+      expect(() => resolveRedemption(save, KEY, NOW - 1000, action, NOW)).toThrow(RangeError);
+    }
+    // 退款要用它落流水
+    for (const now of [Number.NaN, Number.POSITIVE_INFINITY, '2026', undefined, null]) {
+      expect(() => resolveRedemption(save, KEY, NOW - 1000, 'cancelled', now)).toThrow(TypeError);
+    }
+  });
+
+  it('[PARENT-77] pending 只列待兑现的那条；全部处理完是 [] 不是 null', () => {
+    const save = withRedemptions([
+      redemption(NOW - 3000, 'pending'),
+      redemption(NOW - 2000, 'done'),
+      redemption(NOW - 1000, 'cancelled'),
+    ]);
+
+    const state = parentTasks(save);
+    expect(state.pending).toHaveLength(1);
+    expect(state.pending[0].at).toBe(NOW - 3000);
+
+    // 线上 bB() 空时 return null，整块卡片消失 —— 而它是全应用里唯一能看到那条申请的地方
+    const resolved = resolveRedemption(save, KEY, NOW - 3000, 'done', NOW);
+    expect(parentTasks(resolved).pending).toEqual([]);
+    expect(parentTasks(seeded()).pending).toEqual([]);
+    // 脏存档（redemptions 非数组）也不炸
+    expect(parentTasks({ ...seeded(), redemptions: 42 }).pending).toEqual([]);
   });
 });

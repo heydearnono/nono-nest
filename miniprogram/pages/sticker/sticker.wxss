@@ -1,0 +1,192 @@
+/* 贴纸乐园：页头进度条 + 两个抽取按钮 + 类别 chip + 五列图鉴 + 揭示层。
+   揭示层只有一个缩放动画（doc.md「范围外」：不做掉落粒子）—— 与 pet.wxss 的
+   pet-bounce 是全仓第二个 @keyframes，两处各自独立。 */
+
+.sticker {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+.head__count {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.head__bar {
+  height: 16rpx;
+  margin-top: 16rpx;
+  border-radius: 8rpx;
+  background-color: #ffe3ec;
+  overflow: hidden;
+}
+
+.head__fill {
+  height: 100%;
+  border-radius: 8rpx;
+  background-color: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+.head__percent {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+}
+
+.draws {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 32rpx;
+}
+
+.draw {
+  flex: 1;
+  padding: 28rpx 16rpx;
+  border-radius: 28rpx;
+  text-align: center;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+/* 抽不动时只是淡一点，仍然可点 —— 点了给「为什么不能」 */
+.draw--off {
+  opacity: 0.55;
+}
+
+.draw--hover {
+  transform: scale(0.96);
+}
+
+.draw__icon {
+  font-size: 52rpx;
+}
+
+.draw__name {
+  margin-top: 8rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.draw__note {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  opacity: 0.6;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 32rpx;
+}
+
+.chip {
+  padding: 10rpx 20rpx;
+  border-radius: 24rpx;
+  font-size: 24rpx;
+  background-color: #fff;
+  color: var(--color-text);
+}
+
+.chip--on {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16rpx;
+  margin-top: 28rpx;
+}
+
+.cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24rpx;
+  background-color: #fff;
+  opacity: 0.75;
+}
+
+.cell--on {
+  opacity: 1;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 16%);
+}
+
+.cell__face {
+  font-size: 52rpx;
+}
+
+.cell__rare {
+  position: absolute;
+  top: 4rpx;
+  left: 6rpx;
+  font-size: 20rpx;
+}
+
+.cell__count {
+  position: absolute;
+  right: 6rpx;
+  bottom: 4rpx;
+  font-size: 20rpx;
+  color: var(--color-primary);
+}
+
+.reveal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(90 74 82 / 45%);
+}
+
+.reveal__card {
+  padding: 48rpx 64rpx;
+  border-radius: 40rpx;
+  text-align: center;
+  background-color: #fff;
+  animation: sticker-pop 0.28s ease;
+}
+
+@keyframes sticker-pop {
+  from {
+    transform: scale(0.6);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+.reveal__title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.reveal__emoji {
+  margin: 24rpx 0 8rpx;
+  font-size: 140rpx;
+}
+
+.reveal__name {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.reveal__tag {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  opacity: 0.6;
+}
+
+.reveal__hint {
+  margin-top: 28rpx;
+  font-size: 22rpx;
+  opacity: 0.45;
+}

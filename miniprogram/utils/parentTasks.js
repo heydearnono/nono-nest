@@ -1,9 +1,16 @@
 /**
- * 家长端的任务管理与兑换卡启用。
+ * 家长端的任务管理、兑换卡启用与兑换审批。
  *
- * 规格来源：docs/features/parent/doc.md（`PARENT` 区第二段，`PARENT-24` ~ `53`）
+ * 规格来源：docs/features/parent/doc.md（`PARENT` 区第二段 `PARENT-24` ~ `53`、
+ * 第三段 `PARENT-72` ~ `77`）
  *
- * 依赖 point.js（`listCore` 与 `WEEKLY_BONUS.minDays`）与 data/rewards.js（`toggleReward` 要认 id）。
+ * **这个模块是「家长域的写入口」，名字已经名不副实。** 第三段新增的看板与每日报告
+ * 一个字都不写盘，所以它们在 `parentReport.js` 里 —— 拆模块的判据不是
+ * 「碰哪个字段」（两边都读 `days` 与 `redemptions`），是**「它写不写盘」**。
+ * 不改名：要动两处 import、一个测试文件与三份 `doc.md`，换来的只是一个更准的词。
+ *
+ * 依赖 point.js（`listCore`、`WEEKLY_BONUS.minDays`、`postLedger`）与
+ * data/rewards.js（`toggleReward` 要认 id）。
  * **不 import habit.js**：`listHabits` 过滤 `enabled` 且只留 `habit` 类，
  * 而家长端要列**全部 18 条**（含停用的、含另两类）—— 需求正相反，复用它会把
  * 「停用之后再也开不回来」写进实现。同一条也适用于兑换卡：本模块自己从 `REWARDS` 列，
@@ -21,7 +28,7 @@
  */
 
 import { REWARDS } from '../data/rewards.js';
-import { WEEKLY_BONUS, listCore } from './point.js';
+import { WEEKLY_BONUS, listCore, postLedger } from './point.js';
 
 /**
  * 三类任务的排列次序，也是 `reindex` 重排 `sortOrder` 的次序。
@@ -64,6 +71,15 @@ const NAME_FIELDS = ['name', 'icon'];
 
 /** `addHabit` 的表单白名单。三个字段，`category` 只是为了能对非 `habit` 类抛错 */
 const FORM_FIELDS = ['name', 'icon', 'category'];
+
+/**
+ * 兑换记录的两个终态，也是 `resolveRedemption` 的 `action` 白名单。
+ * `'pending'` 不在里面 —— 它是起点，不是家长能选的动作。
+ */
+const RESOLVE_ACTIONS = ['done', 'cancelled'];
+
+/** 待兑现的那个状态 */
+const PENDING = 'pending';
 
 /**
  * 存档里的 `habits`，非数组时给空数组。读取路径不抛错。
@@ -172,7 +188,7 @@ function reindex(list) {
  *
  * @param {object} save 存档
  * @returns {{ habits: object[], coreCount: number, coreWarn: null | 'none' | 'few',
- *             rewards: object[] }}
+ *             rewards: object[], pending: object[] }}
  */
 export function parentTasks(save) {
   const list = ordered(habitsOf(save));
@@ -204,6 +220,12 @@ export function parentTasks(save) {
     // 三条卡**全都列**（含停用的），不复用 rewardState().items ——
     // 那一份已经过滤过停用的，家长端拿它就再也开不回来（PARENT-53）
     rewards: REWARDS.map((reward) => ({ ...reward, enabled: flags[reward.id] !== false })),
+    // 卡是「能换什么」，pending 是「换了还没给」—— 同一件事的两半，所以同一个入口。
+    // **空列表是 [] 不是 null**：线上 bB() 空时 return null，整块卡片消失，
+    // 而它是全应用里唯一能看到那条申请的地方（PARENT-77）
+    pending: (Array.isArray(save?.redemptions) ? save.redemptions : [])
+      .filter(isPlainObject)
+      .filter((item) => item.status === PENDING),
   };
 }
 
@@ -445,4 +467,74 @@ export function toggleReward(save, rewardId) {
   const flags = isPlainObject(save?.rewardFlags) ? save.rewardFlags : {};
 
   return { ...save, rewardFlags: { ...flags, [rewardId]: flags[rewardId] === false } };
+}
+
+/**
+ * 兑现或驳回一条兑换申请。**一个函数两个动作**（`PARENT-72` ~ `77`）。
+ *
+ * 线上分成 `approveExchange` / `rejectExchange` 两个，而其中一个**漏了状态检查**
+ * （doc.md 缺陷 17）—— 已经批过的记录还能再被驳回。两个动作共用三件事：
+ * 找到那条记录、状态必须是 `'pending'`、只改一条。**一个入口比两个入口各查一次可靠**，
+ * 与第一段「改 PIN 只剩 `saveSettings` 一个入口」同一条。
+ *
+ * **`'done'` 一分钱不动。** 申请那一刻 `redeem` 已经 `postLedger('spend')` 扣过了
+ * （本仓库申请即扣，线上是批准时才扣）—— 所以家长这个按钮回答的是
+ * 「东西给了没有」，不是「钱付了没有」。
+ *
+ * **`'cancelled'` 退回 `medalCost`，而退款走 `postLedger`。** 不是
+ * `{ ...save, currency }` —— `point.js::postLedger` 的头注释写着「`save.currency`
+ * 只可能被 `point.js` 改，而它每次改都追加一条流水」。**退款落在驳回那一天的流水里**，
+ * 不是申请那一天：流水回答的是「那天发生了什么」，而退款发生在今天，
+ * 所以 `key` 是入参（页面给 `dayKey(now)`，`utils/` 不读时钟）。
+ *
+ * **记录的身份是 `at`，不是数组下标**：`redemptions` 的元素没有 id
+ * （`redemptionsFromOnline` 连线上那个都不接），而下标会因为「列表渲染之后孩子
+ * 又申请了一条」指向另一条。
+ *
+ * 那条记录**已经不是 `'pending'` 时原样返回入参**，不抛错：家长在两处各点一下是
+ * 竞态，不是编程错误（与 `redeem` 遇到停用卡同一条）。
+ *
+ * @param {object} save 存档
+ * @param {string} key 日期键（退款流水落在这一天）
+ * @param {number} at 那条记录的 `at`（毫秒时间戳，它的身份）
+ * @param {'done' | 'cancelled'} action 兑现或驳回
+ * @param {number} now 毫秒时间戳
+ * @returns {object} 新存档，或入参本身
+ * @throws {RangeError} `at` 找不到、`action` 不在白名单里
+ * @throws {TypeError} `now` 非有限数
+ */
+export function resolveRedemption(save, key, at, action, now) {
+  if (!RESOLVE_ACTIONS.includes(action)) {
+    throw new RangeError(
+      `action 只能是 ${RESOLVE_ACTIONS.join(' / ')}，收到 ${JSON.stringify(action)}`,
+    );
+  }
+  if (typeof now !== 'number' || !Number.isFinite(now)) {
+    throw new TypeError(`now 必须是有限数，收到 ${JSON.stringify(now)}`);
+  }
+
+  const list = Array.isArray(save?.redemptions) ? save.redemptions : [];
+  const index = list.findIndex((item) => isPlainObject(item) && item.at === at);
+  if (index === -1) {
+    throw new RangeError(`at ${JSON.stringify(at)} 不在 redemptions 里`);
+  }
+
+  const record = list[index];
+  if (record.status !== PENDING) return save;
+
+  const redemptions = list.slice();
+  redemptions[index] = { ...record, status: action };
+  const next = { ...save, redemptions };
+
+  if (action !== 'cancelled') return next;
+
+  // 退款走 postLedger：账与余额一起动，一次也不分叉
+  return postLedger(
+    next,
+    key,
+    'earn',
+    { star: 0, gem: 0, petFood: 0, medal: intOr(record.medalCost, 0) },
+    `退回：${record.name}`,
+    now,
+  );
 }

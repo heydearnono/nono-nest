@@ -356,3 +356,206 @@ commit(next, done = '') {
 - **不做的仍然不做。** 删除任务、新增 `learning` / `health` 类、改
   `id` / `category` / `frequency` / `module` / `weeklyTarget`、按老值退、
   积分规则页、宠物改名、每日新字数可配、已掌握重学、PIN 哈希与找回。
+
+---
+
+# 家长端第三段（看板 + 每日报告 + 兑换审批）· 完成总结
+
+- 完成日期：2026-08-17
+- 实际改动：`miniprogram/utils/parentReport.js`（新增，275 行 / **两个函数都是只读的**）、
+  `miniprogram/utils/parentTasks.js`（`resolveRedemption` + `parentTasks` 的 `pending` 字段）、
+  `miniprogram/utils/save.js`（`REDEMPTION_STATUS` 加第三个取值）、
+  `miniprogram/utils/importOnline.js`（`days` 从整份透传改成 `daysFromOnline` 逐键映射，
+  `redemptionsFromOnline` 不再丢 `rejected`）、`miniprogram/utils/reward.js`（`STATUS_TEXT`
+  第三条 + `redemptions` 三种状态全列）、`miniprogram/pages/board/`（**新增，第 12 个 page**，
+  四个文件 / 783 行）、`miniprogram/pages/parent/`（三个文件，页面 497 → 543 行）、
+  `miniprogram/app.json`（一个 page，**不加第五个 tab**）、
+  `tests/parentReport.test.js`（新增，18 个测试）、`tests/parentTasks.test.js`（`PARENT-72` ~ `77`）、
+  `tests/reward.test.js`（`REWARD-18`）、`tests/save.test.js`（`SAVE-24`）、
+  `tests/importOnline.test.js`（`IMPORT-19` ~ `21`，并改 `IMPORT-04` / `IMPORT-12` /
+  端到端那条 `IMPORT-01` 与 `ONLINE_EXPORT` fixture）、
+  `docs/glossary.md`、`docs/features/{storage,reward,habit}/doc.md`、`docs/vision.md`
+- 规格：`PARENT-54` ~ `77`，加 `SAVE-24` / `IMPORT-19` ~ `21` / `REWARD-18`（29 条）
+- 门禁：`npm run check` 全绿（12 份 doc.md，395 条规格，16 个测试文件 / 410 个测试）
+- **`days` 接完了 —— 全仓最后一份整份透传的线上数据有了逐键映射，
+  「导入之后看不出任何历史」这件事到此结束**
+
+## 实现要点
+
+**「整份透传的顶层键，规格只会断言到透传的那一层」这个数现在是 `0`。**
+`days` 从 P1 起是 `days: onlineJson.dailyRecords`，`IMPORT-04` 断言的是
+`toEqual(aug10)` —— 一条恒真的规格：它把线上形状原样搬进存档，
+而本仓库任何读取点都读不出来（`checks` 这个键根本不存在，线上叫 `completedTasks`）。
+本轮 `daysFromOnline` 落地之后，**`utils/reward.js` 的四条成就判据第一次能在
+导入来的存档上数出数字**（`reading_days` / `veggie_week` / `room_tidy` / `daily_all_done`），
+所以这是一次有后果的映射改动，而不是补一段搬运代码。
+
+**墓碑不写键，是把「键存在即已打卡」这条不变式贯到导入侧。** 线上取消打卡写
+`completedTasks[id] = { completed: false }`，本仓库 `uncheck` 删键。
+`completed !== true` 的元素不进 `checks` —— 留一个 `{ at: 0 }` 会让 `isChecked`
+说打过、让 `dayProgress` 多数一件事，而它记录的恰恰是「取消了」。
+**顺带发现 fixture 从来没暴露过这件事**：`ONLINE_EXPORT` 里
+`completedTasks: { wake: true }` 是个布尔，真实形状是
+`{ wake: { completed: true, completedAt: '…' } }` —— 布尔那份 fixture
+既测不出墓碑也测不出 ISO 转毫秒。改 fixture 是本轮工作量最不显眼、
+最容易漏的一件事。
+
+**`ledger` 的四个货币一律补 `0`，理由是 `NaN` 不抛错。** 线上 `br` 写四个键、
+调用方多数只传前两个，所以大部分流水行的 `gems` / `medals` 是 `undefined`。
+不补 `0`，`dayEarned` 求和出 `NaN`，界面显示「NaN⭐」而没有任何一处报错。
+**这类缺陷的特征是「观测得到、监控不到」** —— 与 P5 数学那条
+`math_games` 读了一个两边都不存在的字段名同型。
+
+**`parentReport.js` 一个写函数都没有，而这是文件粒度上的一次「读不写」执行。**
+三个函数（`boardState` / `dailyReport` / `resolveRedemption`）都碰 `days` 与
+`redemptions`，所以按「碰哪个字段」它们该在一个模块里。按「它写不写盘」，
+前两个新开一个文件、后一个留在 `parentTasks.js`。**代价是 `parentTasks.js`
+从此名不副实**（它其实是「家长域的写入口」）—— 不改名，改名要动两处 import、
+一个测试文件与三份 `doc.md`，换来的只是一个更准的词。
+
+**「本周」不新造第四个口径。** 线上三个互不相同的定义都叫「本周」（缺陷 11），
+同一份数据可以给出 `2` / `7` / `false`。看板复用 `point.js::isQualifiedDay`，
+所以「本周达标 4/5 天」与周奖励发不发是同一个数。代价是这个数比线上小
+（线上数「任意一项完成」的天数，几乎每天都算）——
+**一个诚实的小数字比一个好看的大数字有用。**
+
+**分母的近似性没有修，只标出来了。** 缺陷 13 的成因是「今天启用中的任务数」
+被当成每一天的分母，而本仓库的分母**同样只能是今天那个数** ——
+存档里没有「上周三有哪些任务启用着」这笔数据，而那不是遗漏，
+是那笔数据从来没被记过（要记就得给每次启用/停用落一条时间戳，那是一份新的水位）。
+所以处置不在分母上，在显示上：`hasRecord` 为 `false` 的那格显示「—」且点不动。
+**近似值要标出来它是近似值**（`AGENTS.md` 第 5 节第 7 条的同一条精神）。
+
+**`hasRecord` 与 `done: 0` 是两种不同的零，两条规格各钉一个。**
+`PARENT-58`（只有今天有记录）断言另六条 `hasRecord` 为 `false`，
+`PARENT-60`（有记录但一项都没完成）断言那天 `hasRecord` 为 `true` 而 `done` 为 `0`。
+少了前者，一个把两者都返回 `0` 的实现全绿 —— 那就是缺陷 13 的形状。
+
+**三个数一个来源，而第二条规格是为了挡住只改一处的实现。**
+`doneList` / `todoList` 构成划分，`done = doneList.length`（不另数一次）。
+线上「已完成」不过滤 `enabled`、「未完成」过滤（缺陷 14），顶上那个「完成 N 项」
+是第三次数。`PARENT-55`（看板）与 `PARENT-65`（报告）各钉一处：
+少了后者，一个只在看板上过滤 `enabled` 的实现也能全绿。
+`PARENT-66` 是不带具体数字的不变式规格
+（`doneList.length + todoList.length` 恒等于启用任务数）。
+
+**叙述句里一个任务 id 都不写死。** 线上那句
+`completedTasks['brush-am'] && push('今天完成了早晚刷牙。')`（缺陷 15）
+只看早上那条就说「早晚」都刷了，而本仓库 `brush-am` / `brush-pm` 是两条独立任务
+—— 照抄会在报告里说一件没发生的事。三条规则全从数据来，名字取自任务定义。
+**顺带不做线上那句「建议明天继续复习昨天学习的汉字」**：它的触发条件与上一句
+完全相同（`newChars.length` 判了两次），是一句读了同一份数据却装作有建议的模板。
+
+**第四张累计卡换掉了一个恒为 0 的死字段。** 线上 `reading.totalMinutes`
+全仓出现三次、**没有任何一处 `+=`**（缺陷 16）。本轮改成遍历 `days` 现算的
+`readMinutes`，**不落盘累计字段** —— 那种字段会与 `days` 分叉，
+而这里连「余额」语义都没有（对照「流水是账、货币是余额」：没有余额语义的
+东西不存水位）。代价是 O(天数)，看板一天看一次。
+
+**`'cancelled'` 是一个有两种来历的状态，所以文案只能说两边都成立的那件事。**
+驳回产生的那些退了勋章；`IMPORT-12` 从线上映射来的 `rejected` 记录
+**从来没被扣过勋章**（线上批准时才扣），导入不退款也无款可退。
+所以 `STATUS_TEXT` 是「已取消」而不是「已退回」。
+坏值仍然落 `'pending'` 而不落 `'cancelled'` —— 那个状态的语义是「退过款了」，
+给一条脏记录落它等于凭空承认一笔退款。
+
+**退款走 `postLedger`，不直接改 `currency`。** `point.js` 的不变式是
+「`save.currency` 只可能被 `point.js` 改，而它每次改都追加一条流水」。
+`PARENT-73` 因此**同时断言流水多了一行** —— 只断言 `currency.medal` 变了，
+一个直接改 `currency` 的实现能全绿。退款落在**驳回那一天**（`key` 是入参，
+`utils/` 不读时钟）：流水回答的是「那天发生了什么」，而退款发生在今天。
+
+**一个函数两个动作，因为线上分两个而其中一个漏了状态检查。**
+`rejectExchange` 的 `find(e => e.id === n)` 后面没有 `&& e.status === 'pending'`
+（缺陷 17）—— 一条已经批过、勋章已扣的记录还能再被驳回，状态变 `rejected`
+而勋章不回来。`resolveRedemption` 一个入口查一次，与第一段「改 PIN 只剩
+`saveSettings` 一个入口」同一条：**一个入口比两个入口各查一次可靠。**
+
+**记录的身份是 `at` 不是数组下标。** `redemptions` 的元素没有 id
+（与流水同一条），而下标会因为「列表渲染之后孩子又申请了一条」指向另一条。
+兑换是孩子在别的页面点出来的，那段时间里列表可以变 ——
+与第一段「粘贴框一改就把预览作废」同一类接缝。
+
+## 与 `doc.md` 的偏差
+
+**没有设计上的偏差。** 三处偏离线上（一个「本周」口径、「不知道」显示成「—」、
+驳回退款走 `postLedger`）与 24 条 `PARENT` 规格全部照 `doc.md` 落地，
+两个读函数与 `resolveRedemption` 的签名与返回形状一字未改。
+
+**一处依赖偏差（与第一二段同型，第三次了）。** `tasks.md` 的头注写着
+「`parentReport.js` import `save.js`」，实际只 import `dayKey.js` 与 `point.js` ——
+`save.js` 那侧要的是「`days` 的形状约定」，而形状约定是文档不是代码，
+没有一个可 import 的符号。**三段各出现一次同型偏差，规律是：
+写清单时按「它需要知道什么」列依赖，而 import 只能表达「它需要哪个符号」。**
+
+**页面多出一个 `learningRowsOf`，`doc.md` 没写。** `dailyReport().learning`
+是当天那份原始记录（`parentReport.js` 不 import 任何 `data/`），五个子键的形状
+分别归五个 feature 模块。把子键换成名字与图标是排版，所以落在页面里，
+`LEARNING_MODULES` 由页面 import（precedent：`math.js` import `MATH_STAGES`）。
+**只读出 `minutes` 这个标量，不在页面里数数组长度** —— 那是 utils 的事，
+本轮没有规格要那些数字。
+
+**`parent.js` 长了 46 行，`doc.md` 预估「约 60 行」。** 待兑现列表 + 两个按钮 +
+一个入口按钮，落在 543 行。预估偏大是因为 `commit(next, done)` 已经在第二段
+封好了，三个 handler 各只有两三行。
+
+## 看板拆成一页：判据是只读性，代价是两次 PIN
+
+**拆点在第二段收尾时就定了，而定的是「拆哪一块」不是「什么时候拆」。**
+行数（497）决定了必须谈这件事，**只读性**决定了拆看板而不是拆任务段：
+看板与报告一个字都不写盘，做成「从家长首页跳过去、进去前再验一次 PIN」不别扭
+（一天看一次，多输四个数字可以接受）；任务段不行 —— 改完要立刻看到结果，
+中间插一次验证会让「改错了再改回来」变成噩梦。**所以审批留在 `parent` 的任务段**，
+看板页零写按钮。
+
+**「只读」说的是看板段与报告段，蒙层那一层仍然落盘。** `pinFails` 是水位，
+验错要累加、验对要清零，与 `parent.js` 同一条。这句话写进了 `board.js` 的头注释 ——
+「这一页是只读的」与「这一页不写盘」不是同一件事，而前者容易被读成后者。
+
+**那 20 行蒙层是刻意重复的，第三处出现时再抽。** 共用要抽一个 `behavior` 或一个
+渲染 helper，而两处的差别（验过之后显示什么）恰好是全部内容。
+本仓库至今零自定义组件，为看板开这个头不值得。**本轮之后家长端不会有第三个页面**，
+所以这笔债大概不会被兑现 —— 记下来是为了让下一个人知道它是决定不是疏忽。
+
+**七根柱子是七个 `<view>` 加一个百分比高度，没上 canvas。** 折线要么上 canvas
+（要测量、要处理 dpr）、要么内联 SVG（小程序不支持），而折线的信息在
+「七天的形状」上，柱子一样能看出来。inline style 的百分比是既有惯例
+（`pet.wxml` 的经验条）。
+
+## 页面层踩到的两个小程序特有的坑
+
+**嵌套 `wx:for` 的 `index` 会被内层遮住。** 柱子是「三条趋势 × 七天」两层循环，
+而每根柱子下面要写星期几 —— 那个字在 `board.week.days[?]` 里。第一版写的是
+`board.week.days[index].weekday`，而 `index` 在内层已经是内层的下标了。
+处置是给内层起名（`wx:for-index="dayIndex"`），外层不改。
+**规律：两层 `wx:for` 里只要有一层需要按下标去另一个数组取值，那一层就必须改名 ——
+默认名字在嵌套里没有稳定含义。**
+
+**布尔穿过 `dataset` 之后不该用 `=== true` 判。** `onTapDay` 第一版接
+`data-has="{{item.hasRecord}}"` 再判 `has !== true`，而 WXML 的 dataset 值
+经过一次模板序列化 —— 判 `=== true` 与判真值在那里是两件事。处置是**不传它**：
+那一行就在 `this.data.board.week.days` 里，按 `key` 查出来判 `row.hasRecord`。
+**规律：dataset 只传身份（id / key / 日期键），状态从 `this.data` 里查 ——
+传状态就有了第二个真相，而它是序列化过的那一份。**
+
+## P7 至此完成
+
+- **三段做完，家长端从「藏在长按后面的一把锁」变成了完整的一侧应用**：
+  验证 → 设置 → 任务管理 → 看板 → 每日报告 → 兑换审批，六件事全有入口。
+  第一段 summary 记的「全仓最大的缺口」（`importOnlineSave` 零调用点）与
+  第二段 summary 记的（`redemptions` 只能看不能批）都封上了。
+- **`PARENT` 区已用到 `77`。** 家长域再有新活从 `PARENT-78` 起。
+- **`needsParentConfirm` 从「以后」变成了「不做」。** 兑换审批做完之后能看清
+  那是另一件事：兑换是异步的、不阻塞孩子（申请即扣，东西晚点给），
+  而打卡审批会让孩子点完看不到星光 —— 与「什么算好」第 2 条相反。
+  它保持全仓零读取点，`habit/doc.md` 已改。
+- **`importOnline.js` 到此只剩三个「不接」，且理由各不相同**（`rewardRules`
+  费率在任务自己身上、`pointRules` 同理、`stickerCollection` 结构还没定）——
+  前两个是永久不接，第三个等贴纸那一轮。
+- **`stickerCollection` / `lastFreeStickerDate` 仍未接**，是全仓最后两个
+  线上有而本仓库没有的顶层键。贴纸单独一轮（`REWARD` 区还是新开一个区待定）。
+- **P8（语音跟读）仍卡在插件申请上**，与代码无关。
+- **不做的仍然不做。** 删除任务、新增 `learning` / `health` 类、改
+  `id` / `category` / `frequency` / `module` / `weeklyTarget`、按老值退、
+  积分规则页与改价、`needsParentConfirm`、PIN 哈希与找回、反向迁移、
+  导入的合并模式、家长端 tab、多孩子档位、宠物改名、已掌握重学。

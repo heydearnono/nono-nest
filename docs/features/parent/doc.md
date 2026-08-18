@@ -1,17 +1,21 @@
-# 家长端（PIN 入口 · 设置 · 数据搬迁 · 任务管理）
+# 家长端（PIN 入口 · 设置 · 数据搬迁 · 任务管理 · 看板与审批）
 
 - 区名：`PARENT`（家长端 PIN、设置、任务管理、规则、报告）
 - 模块：`miniprogram/utils/parent.js`、`miniprogram/utils/parentTasks.js`、
-  `miniprogram/pages/parent/`
+  `miniprogram/utils/parentReport.js`、
+  `miniprogram/pages/parent/`、`miniprogram/pages/board/`
 - 状态：**第一段已完成**（`PARENT-01` ~ `23`，见 `summary.md`）；
-  **第二段（任务管理 + 兑换卡启用）是本轮**（`PARENT-24` ~ `53`）；
-  第三段（看板 + 每日报告 + 兑换审批）未开始，从 `PARENT-54` 续号
+  **第二段已完成**（任务管理 + 兑换卡启用，`PARENT-24` ~ `53`）；
+  **第三段（看板 + 每日报告 + 兑换审批）是本轮**（`PARENT-54` ~ `77`）
 - 关联愿景：`docs/vision.md` P7（家长后台）
 - 顺带产出：第一段补了 `parent` 的两个 PIN 节流字段（`SAVE-19` / `IMPORT-16`）、
   首页的长按入口、**全仓第一个 `importOnlineSave` 调用点**；
   第二段给 `habits` 补元素收敛与线上字段映射（`SAVE-20` ~ `22` / `IMPORT-17`），
   让导入来的任务**真的生效**，新开一个顶层键 `rewardFlags`（`SAVE-23` / `IMPORT-18`），
-  并给 `REWARD` 区补两条启用守卫的规格（`REWARD-16` / `REWARD-17`）
+  并给 `REWARD` 区补两条启用守卫的规格（`REWARD-16` / `REWARD-17`）；
+  第三段接上**线上 `dailyRecords` 的内部结构**（`IMPORT-19` ~ `21`，全仓最后一份
+  没接的线上数据）、给 `redemptions.status` 加第三个取值 `'cancelled'`（`SAVE-24`）
+  与它的一句话（`REWARD-18`）
 
 ## 背景
 
@@ -28,8 +32,8 @@ WechatSI 插件）。它同时压着全仓最大的一个缺口：`utils/importO
 | 段  | 内容                                            | 本轮   |
 | --- | ----------------------------------------------- | ------ |
 | 一  | 长按入口 + PIN 验证 + 家长设置 + 导出/导入/清空 | 已完成 |
-| 二  | 任务管理（增删改与启用）+ 兑换卡启用            | **是** |
-| 三  | 看板 + 每日报告 + 兑换审批                      | 否     |
+| 二  | 任务管理（增删改与启用）+ 兑换卡启用            | 已完成 |
+| 三  | 看板 + 每日报告 + 兑换审批                      | **是** |
 
 第一段这么切是因为**数据搬迁不能再等**：第二段要改的 `habits`、第三段要读的
 `days`，都应该先是 nono 真实的那一份，而不是空存档。先有导入，后面两段才有真数据可看。
@@ -117,6 +121,67 @@ requestExchange: (n) => { const t = rewardRules.find(e => e.id === n && e.enable
                           if (!t) { e.toast = `这个奖励暂时不可用`; return; } … }   // 动作再守一次
 ```
 
+### 线上的看板、每日报告与兑换审批（第三段逆向自 `index-VUOSJfWA.js`）
+
+线上 `/parent` 这一页本身就是看板（`yB()`，`.scratch/index-VUOSJfWA.js:684151`），
+下面挂着四个入口（`.scratch/index-VUOSJfWA.js:688800`：任务管理 / 积分与兑换 /
+每日报告 / 家长设置）、一张数据卡（`xB()`）与一张待审批卡（`bB()`）。
+每日报告是另一条路由（`wB()`，`.scratch/index-VUOSJfWA.js:695875`）。
+
+看板由四块组成：
+
+```js
+// .scratch/index-VUOSJfWA.js:684151 —— 四个数与三条线的来源
+let u = t.filter((e) => e.enabled).length, // 「今日目标」的分母：全部启用任务
+  d = c ? Object.values(c.completedTasks).filter((e) => e.completed).length : 0,
+  f = l.filter((t) => {
+    let n = e[t]; // 本周「打卡天数」：任意一项即算
+    return n && Object.values(n.completedTasks).some((e) => e.completed);
+  }).length,
+  p = d >= a.dailyGoal; // 达标
+// .scratch/index-VUOSJfWA.js:244157 —— 趋势的每日百分比
+function Sr(e, t, n) {
+  return t.map((t) => {
+    let r = e[t];
+    if (!r || n.length === 0) return 0;
+    let i = n.filter((e) => r.completedTasks[e]?.completed).length;
+    return Math.round((i / n.length) * 100);
+  });
+}
+// .scratch/index-VUOSJfWA.js:688071 —— 打卡日历：i = u，今天的启用数当每一天的分母
+l.map((t, n) => {
+  let r = e[t],
+    i = u,
+    a = r ? Object.values(r.completedTasks).filter((e) => e.completed).length : 0,
+    o = i ? a / i : 0;
+});
+```
+
+三条线（学习 / 自律 / 健康）由 `Er` / `wr` / `Tr`
+（`.scratch/index-VUOSJfWA.js:244480` / `:244400` / `:244561`）各取一份**启用中的 id 列表**，
+喂给 `Sr` 得到七个百分比，画在 recharts 的 `LineChart` 里。
+四张累计卡（`.scratch/index-VUOSJfWA.js:684928`）读的是
+`masteredChars.length` / `masteredPoems.length` / `currentStage` / `reading.totalMinutes`。
+
+兑换审批是三个 store action：
+
+```js
+// .scratch/index-VUOSJfWA.js:277716 —— 申请：不扣勋章，只落一条 pending
+requestExchange: n => { … if (e.currency.medals < t.medalCost) { e.toast = `勋章还不够哦`; return }
+  e.exchangeRecords.unshift({ id: gr(), rewardId: t.id, rewardName: t.name,
+    medalCost: t.medalCost, status: `pending`, requestedAt: new Date().toISOString() }) }
+// .scratch/index-VUOSJfWA.js:278086 —— 批准：这里才扣
+approveExchange: n => { let t = …find(e => e.id === n && e.status === `pending`);
+  !t || e.currency.medals < t.medalCost ||
+  (e.currency.medals -= t.medalCost, t.status = `approved`, t.resolvedAt = …) }
+// .scratch/index-VUOSJfWA.js:278314 —— 驳回：不看状态、不退款
+rejectExchange: n => { let t = …find(e => e.id === n);
+  t && (t.status = `rejected`, t.resolvedAt = new Date().toISOString()) }
+```
+
+**线上是「批准时扣」，本仓库 P3-b 已经改成「申请即扣」**（`reward/doc.md`）——
+这一处差异决定了第三段的驳回要不要退款，见下文。
+
 ### 线上的已知缺陷
 
 **第一段那六项**（前五项由第一段处置，第六项在存档层夹掉）：
@@ -164,6 +229,57 @@ requestExchange: (n) => { const t = rewardRules.find(e => e.id === n && e.enable
     历史记录里那条仍是旧价（这一点两边一致、也是对的），但**待兑现的申请**
     在线上是批准时才扣勋章 —— 改价之后那条 pending 的申请按新价扣。
     本仓库申请即扣，所以这个缺陷不存在；代价是改价这件事本轮**仍然不做**（见下）。
+
+**第三段又找出七项**，全在看板、报告与审批上：
+
+11. **「本周」在线上有三个互不相同的定义，界面上都叫「本周」。**
+    `jr`（`.scratch/index-VUOSJfWA.js:244994`）数的是「核心 8 项里完成 ≥ 5 项」的天数，
+    周奖励用它；看板那个 `f`（`.scratch/index-VUOSJfWA.js:684151`）数的是
+    「任意一项完成」的天数，页面上写着「本周打卡 N 天」；
+    `Br`（`.scratch/index-VUOSJfWA.js:246964`）数的是
+    「自律 + 学习完成 ≥ `ceil(总数 × 0.6)`」的天数 ≥ 5，`full-week` 成就用它。
+    同一周同一份数据，三个数可以是 `2` / `7` / `false` —— 家长看到「本周打卡 7 天」
+    却没拿到周奖励，界面上无从解释。本仓库只有一个 `isQualifiedDay`
+    （P3-b 已经收拢，见 `reward/doc.md`），**看板必须复用它**，
+    这一条的处置在第三段是「不新造第四个口径」。
+12. **`dailyGoal` 的分母是全部启用任务，而达标线是家长填的一个数。**
+    `u = tasks.filter(e => e.enabled).length` 数的是 18 条里启用的全部
+    （含学习五条、健康四条），而 `dailyGoal` 默认 `6`。两个数不是同一件事的两端：
+    18 条全启用时「完成 6 项」可以是「六条自律、一条学习都没做」。
+    看板同时显示 `d / dailyGoal` 与那个 `u`，家长要自己想清楚哪个是分母。
+13. **打卡日历用「今天的启用任务数」当每一天的分母。**
+    `.scratch/index-VUOSJfWA.js:688071` 那个 `i = u` 是循环外算的一个常数 ——
+    周一的完成数除以今天的启用数。家长上周五启用了三条新任务，
+    整周的柱子会一起变矮；而**完全没有记录的那几天分母也是 `u`**，
+    显示成 `0/18` 而不是「没有数据」。
+14. **报告的「已完成」与「未完成」不构成划分。**
+    `u = t.filter(e => c?.completedTasks[e.id]?.completed)`（**不过滤 `enabled`**）
+    对 `d = t.filter(e => e.enabled && !c?.…)`（**过滤 `enabled`**），
+    见 `.scratch/index-VUOSJfWA.js:695875`。停用的任务今天打过卡会出现在「已完成」里，
+    而它在「未完成」里不出现 —— 两个列表加起来既可能多于也可能少于任务总数。
+    而且「未完成」还 `.slice(0, 8)`（`.scratch/index-VUOSJfWA.js:697375`），
+    截断没有任何提示。
+15. **报告的叙述句里写死了一个任务 id，而那句话说的事情与 id 不符。**
+    `c?.completedTasks['brush-am']?.completed && _.push('今天完成了早晚刷牙。')`
+    （`.scratch/index-VUOSJfWA.js:695875`）—— 只看早上那条就说「早晚」都刷了。
+    本仓库同样有 `brush-am`（早上刷牙）与 `brush-pm`（晚上刷牙）两条独立任务
+    （`data/defaultHabits.js`），照抄这一句会在报告里说一件没发生的事。
+16. **报告的「阅读」累计读的是一个永不递增的字段。**
+    `reading.totalMinutes` 全仓只出现三次：初始化 `0`
+    （`.scratch/index-VUOSJfWA.js:242505`）、孩子侧的学习入口卡
+    （`:636042`）、看板那张累计卡（`:684928`）—— **没有任何一处 `+=`**。
+    那个「📖 阅读 0 分钟」是个永远的 `0`。与 P5 数学 `math_games`
+    读了一个两边都不存在的字段名同型（`math/doc.md`）：
+    **「进度恒 0」既可能是「还没有数据」也可能是「没人写它」，观测结果一样。**
+17. **`rejectExchange` 不看状态、不退勋章；`approveExchange` 勋章不够时静默什么都不做。**
+    `.scratch/index-VUOSJfWA.js:278314` 那个 `find(e => e.id === n)` 后面没有
+    `&& e.status === 'pending'` —— 一条已经 `approved`（勋章已扣）的记录还能再被驳回，
+    状态变成 `rejected` 而勋章不回来。`:278086` 的
+    `!t || e.currency.medals < t.medalCost || (…)` 那一支在勋章不够时**连 toast 都没有**，
+    家长点了「确认」，界面上什么都不发生。
+    而 `bB()`（`.scratch/index-VUOSJfWA.js:689463`）在没有 pending 时 `return null` ——
+    待审批卡整块消失，且它只在 `/parent` 的最下面：
+    孩子申请之后，那条申请在应用里没有第二个地方能看到。
 
 ## 设计
 
@@ -281,13 +397,14 @@ verifyPin(save, '9999', now) -> { ok: false, save: 入参本身, reason: 'locked
 
 一个页面，`unlocked` 之后分三段：
 
-| 页面                  | 内容                                                         |
-| --------------------- | ------------------------------------------------------------ |
-| `pages/parent/parent` | PIN 验证蒙层 → 通过后是家长首页                              |
-| — 设置段              | 昵称 / PIN / 每日目标 / 备注（第一段）                       |
-| — 任务段              | 18 条任务的启用与编辑 + 新增 + 兑换卡启用（**第二段**）      |
-| — 数据段              | 导出 / 导入 / 清空（第一段）                                 |
-| —                     | 第三段的看板 / 每日报告 / 兑换审批不在本轮，届时可能要拆页面 |
+| 页面                  | 内容                                                    |
+| --------------------- | ------------------------------------------------------- |
+| `pages/parent/parent` | PIN 验证蒙层 → 通过后是家长首页                         |
+| — 设置段              | 昵称 / PIN / 每日目标 / 备注（第一段）                  |
+| — 任务段              | 18 条任务的启用与编辑 + 新增 + 兑换卡启用（**第二段**） |
+| — 数据段              | 导出 / 导入 / 清空（第一段）                            |
+| `pages/board/board`   | 看板 + 每日报告（**第三段**，只读，进去前再验一次 PIN） |
+| — 兑换审批            | 留在 `parent` 的任务段（**第三段**，它是写入口）        |
 
 **PIN 验证与家长首页是同一个页面的两个状态，不是两个页面。** 分成两页要在
 「验过了」这件事上落一个状态（存档字段或全局变量），而它不该跨页面存活 ——
@@ -619,6 +736,257 @@ P3-b 明确把名单从「utils 里的平行数组」搬到「任务自己的字
 `delta` 只认 `-1` / `1`，其余抛 `RangeError`（页面只有两个按钮）。
 移到边界外返回入参本身。
 
+### 三处偏离线上（第三段）
+
+**1. 「本周」只有一个定义，看板复用 `isQualifiedDay`。** 线上三个口径同叫「本周」
+（缺陷 11）。本仓库 P3-b 已经把达标日收拢成一个函数，第三段的看板**不新造第四个** ——
+它显示的「本周达标 N 天」与周奖励发不发是同一个数，家长看到 `4/5` 就知道还差一天。
+代价是看板上那个数比线上的小（线上数「任意一项完成」的天数，几乎每天都算）——
+一个诚实的小数字比一个好看的大数字有用。
+
+**2. 「不知道」显示成「不知道」，不显示成 0。** 打卡日历那一格（缺陷 13）线上用
+「今天启用中的任务数」当每一天的分母，包括完全没有记录的那几天，显示成 `0/18`。
+**本仓库的分母同样只能是今天那个数** —— 存档里没有「上周三有哪些任务启用着」这笔数据，
+而这不是遗漏，是那笔数据从来没被记过（要记就得给每次启用/停用落一条时间戳，
+那是一份新的水位）。所以处置不在分母上，在显示上：`boardState` 给每天一个
+`hasRecord`，没有记录的那天页面显示「—」。**近似值要标出来它是近似值**，
+分母这一条在文档里说明一次（`AGENTS.md` 第 5 节第 7 条的同一条精神：不臆造数据）。
+
+**3. 驳回退回勋章，退款走 `postLedger`。** 线上 `rejectExchange` 不看状态、不退款
+（缺陷 17），而线上**申请时不扣勋章**，所以「不退」在那边是自洽的。
+本仓库 P3-b 改成了**申请即扣**（`reward/doc.md`），驳回不退等于孩子点错一次就白掉
+两枚勋章 —— 与「什么算好」第 2 条（温和，不惩罚）相反。所以第三段给
+`redemptions.status` 加第三个取值 `'cancelled'`（`SAVE-24`），驳回时：
+
+```js
+// 退款不是 { ...save, currency } —— point.js::postLedger 的头注释写着
+// 「save.currency 只可能被 point.js 改，而它每次改都追加一条流水」
+postLedger(
+  next,
+  key,
+  'earn',
+  { star: 0, gem: 0, petFood: 0, medal: record.medalCost },
+  `退回：${record.name}`,
+  now,
+);
+```
+
+**退款落在驳回那一天的流水里，不是申请那一天。** 流水回答的是「那天发生了什么」，
+而退款发生在今天。所以 `key` 是入参（页面给 `dayKey(now)`，`utils/` 不读时钟）。
+
+**同一个 `'cancelled'` 有两种来历，所以文案是「已取消」不是「已退回」。**
+驳回产生的那些退了勋章，而 `IMPORT-12` 从线上映射来的 `rejected` 记录
+**从来没被扣过勋章**（线上批准时才扣）—— 导入不退款，也无款可退。
+一个状态两种来历，文案只能说两边都成立的那件事。
+
+### `utils/parentReport.js`：两个纯读函数，一个写盘动作都没有
+
+```js
+boardState(save, now)        -> { today, week, trends, totals }
+dailyReport(save, key)       -> { key, done, goal, met, doneList, todoList, learning, sentences, currency, pet }
+```
+
+**第三段新增的模块一个写函数都没有**，六个写入口仍然全在 `parentTasks.js` 里
+（第二段五个 + 本轮的 `resolveRedemption`）。这是第二段「读排列 / 写重排」那条纪律
+在**文件粒度**上的一次执行：拆模块的判据不是「碰哪个字段」（三个函数都碰 `days` 与
+`redemptions`），是「它写不写盘」。代价是 `parentTasks.js` 从此名不副实 ——
+它其实是「家长域的写入口」。**不改名**：改名要动两处 import、一个测试文件与三份
+`doc.md`，换来的只是一个更准的词；这笔债记在这里。
+
+`boardState` 的形状：
+
+```js
+{
+  today: { key, done, goal, met, total },   // done 只数启用中的，与 dailyReport.doneList 同源
+  week: {
+    days: [{ key, weekday, done, total, hasRecord, qualified, today }],  // 周一到周日七条
+    qualifiedDays: 3, minDays: 5, bonusDone: false,
+  },
+  trends: { habit: [0, 33, 100, …], learning: […], health: […] },        // 各七个整数，百分比
+  totals: { charsLearned: 30, charsMastered: 7, poems: 2, stage: 3, readMinutes: 120, days: 12 },
+}
+```
+
+**`done` 的口径只有一个，而它不是 `dayProgress`。** `habit.js::dayProgress` 数的是
+首页九格（`category === 'habit'` 且启用），看板与报告要的是**三类合计**。
+两个口径不同，所以是两个函数、两个名字 —— 但**都由 utils 给**，页面一个都不自己数。
+`total` 是启用中的任务总数，`goal` 是 `dailyGoal`：线上把这两个数并排显示却不说它们
+不是同一件事的两端（缺陷 12），本仓库两个数都给，**页面上写「完成 5 项 · 目标 6 项（共 18 项）」**
+—— 括号里那个数说明「目标」不是「全部」。
+
+**趋势是三条 × 七个整数，不引图表库。** 每天的值是
+`round(该类启用中完成的条数 / 该类启用中的条数 × 100)`，该类一条都没启用时落 `0`
+（照线上 `Sr`，`.scratch/index-VUOSJfWA.js:244157`）。线上用 recharts 画折线，
+本仓库零运行时依赖，**画七根 WXSS 柱子**：折线要么上 canvas（要测量、要处理 dpr）、
+要么内联 SVG（小程序不支持），而柱子是七个 `<view>` 加一个百分比高度。
+折线的信息在「七天的形状」上，柱子一样能看出来。
+
+**第四张累计卡换掉了线上那个死字段。** 线上四格是
+`masteredChars.length` / `masteredPoems.length` / `currentStage` / `reading.totalMinutes`，
+而最后那个恒为 `0`（缺陷 16）。本仓库改成**遍历 `days` 现算的累计阅读分钟**
+（`learning.reading.minutes` 求和）—— **不落盘一个累计字段**：那种字段会与 `days`
+分叉，而这里连「余额」都不需要（与「流水是账、货币是余额」同一条判断的反面：
+没有余额语义的东西不存水位）。代价是 O(天数)，看板一天看一次，可以接受。
+
+**识字给两个数（学过 / 已掌握），不只给「已掌握」。** 本仓库的掌握要熬完六个间隔、
+跨 58 天（`literacy/doc.md`），头两个月只显示「已掌握 0 字」会让家长以为识字没在动 ——
+`chars_learned` 成就当初也是为这件事改成数「学过」的（`ACHV-05`）。
+
+### `dailyReport(save, key)`：两张列表构成划分，那个数就是列表的长度
+
+线上「已完成」不过滤 `enabled` 而「未完成」过滤（缺陷 14），两张表加起来既可能多于
+也可能少于任务总数；而顶上那个「完成 N 项」是**第三次数**
+（`Object.values(completedTasks).filter(completed).length`），与两张表都不同源。
+
+本仓库三个数一个来源：
+
+```js
+const enabled = habits.filter((item) => item.enabled); // 三类合计
+const doneList = enabled.filter((item) => item.id in checks);
+const todoList = enabled.filter((item) => !(item.id in checks));
+const done = doneList.length; // 不另数一次
+```
+
+**`todoList` 不截断。** 线上 `.slice(0, 8)` 且不提示（`.scratch/index-VUOSJfWA.js:697375`），
+而本仓库任务总数 18 条、页面能滚。
+
+**停用的任务今天打过卡，两张列表都不含它**，`done` 也不含它 —— 与看板的 `today.done`
+是同一个口径（`PARENT-55` / `PARENT-65` 两条各钉一处，少了后者，
+一个只在看板上过滤 `enabled` 的实现也能全绿）。那条打卡记录仍在存档里，
+家长把任务开回来它就回来了（软删除的同一条）。
+
+**叙述句在 utils 里拼，且一个任务 id 都不写死。** 线上那句
+`completedTasks['brush-am'] && push('今天完成了早晚刷牙。')`（缺陷 15）只看早上那条
+就说「早晚」都刷了 —— 本仓库 `brush-am`（早上刷牙）与 `brush-pm`（晚上刷牙）
+是两条独立任务，照抄会在报告里说一件没发生的事。三条规则都从数据来：
+
+| 条件                          | 句子                                                |
+| ----------------------------- | --------------------------------------------------- |
+| `doneList` 非空               | 「今天完成了 N 项：起床、刷牙、……」（名字来自数据） |
+| 当天 `literacy.newChars` 非空 | 「识字学了「天」「地」。」                          |
+| 一条都没有                    | 「今天还没有完成记录，明天一起加油！」              |
+
+**不做线上那句「建议明天继续复习昨天学习的汉字」** —— 它的触发条件与上一句完全相同
+（`newChars.length` 判了两次），是一句读了同一份数据却装作有建议的模板。
+句子放在 utils 而不是页面，与 `coreWarn` / `statusText` 同一条：
+**页面不选文案里的事实**，它只负责换行。
+
+### `resolveRedemption(save, key, at, action, now)`：一个函数两个动作
+
+```js
+resolveRedemption(save, key, at, 'done')       -> save   // pending → done，货币一分不动
+resolveRedemption(save, key, at, 'cancelled')  -> save   // pending → cancelled，退回 medalCost
+```
+
+**`'done'` 不动货币**，因为申请那一刻 `redeem` 已经 `postLedger('spend')` 扣过了
+（`reward/doc.md`）。所以确认是一次纯粹的状态迁移 —— 家长端的这个按钮回答的是
+「东西给了没有」，不是「钱付了没有」。
+
+**两个动作一个函数**，因为它们共用三件事：找到那条记录、状态必须是 `'pending'`、
+只改一条。线上分成 `approveExchange` / `rejectExchange` 两个，而其中一个
+**漏了状态检查**（缺陷 17）—— 已经批过、勋章已扣的记录还能再被驳回，
+状态变成 `rejected` 而勋章不回来。**一个入口比两个入口各查一次可靠**，
+与第一段「改 PIN 只剩 `saveSettings` 一个入口」同一条。
+
+**记录的身份是 `at`，不是数组下标。** `redemptions` 的元素没有 id
+（与流水同一条，`redemptionsFromOnline` 连线上那个 `id` 都不接），
+而下标会因为「列表渲染之后又多了一条」指向另一条 ——
+兑换是孩子在别的页面点出来的，那段时间里列表可以变（与第一段「粘贴框一改就把预览作废」
+同一类接缝）。`at` 是毫秒时间戳，同一毫秒两条要在 1ms 内点两次。
+
+三种错误策略各有理由：
+
+| 情况                         | 行为                                                                                               |
+| ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| `at` 找不到                  | `RangeError` —— 按钮是读取入口渲染出来的，传别的值只可能是代码写错                                 |
+| `action` 不是那两个值        | `RangeError` —— 页面只有两个按钮                                                                   |
+| `now` 非有限数               | `TypeError`（`AGENTS.md` 第 5 节第 6 条）                                                          |
+| 那条记录已经不是 `'pending'` | **原样返回入参**，不抛错 —— 家长在两处各点一下是竞态，不是编程错误（与 `redeem` 遇到停用卡同一条） |
+
+**待兑现列表进 `parentTasks(save)` 的 `pending` 字段**，与那三张兑换卡并列：
+卡是「能换什么」，`pending` 是「换了还没给」，同一件事的两半，
+所以在同一段（任务段）里也在同一个读取入口里。**空列表是 `[]` 不是 `null`**，
+页面在没有待兑现时显示一句「没有待兑现的兑换」—— 线上 `bB()` 空时
+`return null`，整块卡片消失（缺陷 17 第三处），而它是全应用里唯一能看到那条申请的地方。
+
+### 导入线上 `dailyRecords`：全仓最后一份没接的线上数据
+
+`days` 从 P1 起就是 `days: onlineJson.dailyRecords` 整份透传（`IMPORT-04` 写着「原样」），
+第二段把它列进范围外并写明「第三段的看板要读 `days`，那时再接」。**本轮接完**，
+`IMPORT-04` 的「原样」因此改成「日期键原样，值逐键映射」。
+逐键规则与恒等映射的清单在 `docs/features/storage/doc.md`（`IMPORT-19` ~ `21`），
+这里只记三个判断：
+
+**墓碑不算打过卡，而键也不留。** 线上取消打卡写
+`completedTasks[id] = { completed: false }`（`.scratch/index-VUOSJfWA.js:272460`
+那一支），本仓库 `uncheck` 删键 —— `HABIT` 区的不变式是「键存在即已打卡」。
+所以 `completed !== true` 的元素**不写进 `checks`**。留一个 `{ at: 0 }` 会让
+`isChecked` 说打过、让 `dayProgress` 多数一件事，而它记录的恰恰是「取消了」。
+
+**`ledger` 的四个货币一律补 `0`。** 线上 `br`（`.scratch/index-VUOSJfWA.js:243866`）
+写的是 `{ stars, foodPoints, gems, medals }` 四个键，而调用方
+（`Do` / `Oo`，`:270380` / `:270496`）多数只传前两个 —— 大部分流水行的
+`gems` / `medals` 是 `undefined`。搬过来不补 `0`，`dayEarned` 那类求和会变 `NaN`，
+而 `NaN` 在界面上显示成「NaN⭐」且不会抛错。**顺带丢掉元素的 `id`**：
+本仓库的流水没有 id（`postLedger` 头注释：「它不按 id 查，数组下标就是它的身份」）。
+
+**`learning` 的三个子键各丢一样东西，理由都不是「用不上」。**
+`reading` / `english` 丢 `completed`：**完成状态只能有一个真相**，那就是 `checks`
+（`learning.js::isDone` 的头注释已经写下这条）；两处记录同一件事，
+迟早有一处对不上。`reading` 还丢 `coverDataUrl` —— 它是一整张 base64 图片
+（`.scratch/index-VUOSJfWA.js:663518`），小程序单个 storage key 上限 1MB、
+整体 10MB，几十天的封面就能把存档撑爆，而它在本仓库没有任何显示位置。
+`literacy` 丢 `mastered`：本仓库的「已掌握」从
+`learningProgress.literacy.chars[字].step` 现算（`step >= 7`），
+存一份当天的快照就是第二个真相。
+
+**四条成就的进度会被这份映射改变，所以它是一次有后果的改动。**
+`utils/reward.js` 的 `JUDGES` 里恰好四条读 `days` 的内部：
+`reading_days` 读 `day.learning?.reading !== undefined`、
+`veggie_week` 读 `'vegetables' in checks`、`room_tidy` 读 `'room' in (day.checks ?? {})`、
+`daily_all_done` 读 `day.bonuses?.allDone === true`。所以「墓碑不写键」
+「`learning.reading` 的形状」「`dailyAllDone` → `allDone` 改名」这三条
+各自都在动成就进度 —— 在此之前 `days` 是原样透传的线上形状，
+这四条对导入来的存档**一条都数不出来**（`checks` 这个键根本不存在，
+线上叫 `completedTasks`）。一条规格专门断言这件事（`IMPORT-19`）。
+
+### 页面：拆一个只读的看板，代价是两次 PIN
+
+`parent.js` 第二段收尾时 497 行，是全仓最大的页面，拆点在那时就定了：**拆看板**。
+判据不是行数，是**只读性** —— 看板与报告一个字都不写盘，做成「从家长首页跳过去、
+进去前再验一次 PIN」不别扭（一天看一次，多输四个数字可以接受）；
+而任务段不行，改完要立刻看到结果，中间插一次验证会让「改错了再改回来」变成噩梦。
+
+**`pages/board/` 是第 12 个 page，`app.json` 不加第五个 tab。** 与
+`pages/parent/` 同一条：家长的东西不进 tabBar（孩子会点）。没有 `components/` 目录，
+所以「抽个组件」不是选项 —— 本仓库至今零自定义组件，为看板开这个头不值得。
+
+**看板页自己有一层 PIN 蒙层，代码与 `parent.js` 那一层同形但不共用。**
+共用要抽一个 `behavior` 或一个渲染 helper，而两处的差别（验过之后显示什么）
+恰好是全部内容。**重复的是那 20 行蒙层**，抽出来省不到 20 行、多一个抽象。
+这笔重复记在这里，第三处出现时再抽（本轮之后家长端不会有第三个页面）。
+
+看板一页两段，`tab` 字段切换（与 `parent.js` 同形）：
+
+| 段     | 内容                                                                         |
+| ------ | ---------------------------------------------------------------------------- |
+| 看板段 | 今日四个数 + 本周七格日历 + 三条七日趋势柱 + 四格累计                        |
+| 报告段 | 选一天（默认今天）→ 叙述句 + ✅ 已完成 / ⏳ 未完成 / 📚 学习 / 🎁 奖励与宠物 |
+
+**报告能翻到前几天，选日期用的是 `week.days` 那七个键**，不开 `picker`：
+`wx.datePicker` 能选到没有记录的任意一天，而看板已经把这一周摊开了 ——
+点日历里那一格就是「看那天的报告」。**没有记录的那几格点不动**（`hasRecord` 为 `false`），
+因为一份空报告说不出任何事。
+
+**审批留在 `parent` 的任务段，与三张兑换卡并列。** 它是写入口，而看板页是只读的 ——
+把一个写按钮放进只读页面，「进去前验一次就够」这个前提就没了
+（只读页面看错了没有后果，写错了有）。待兑现每条两个按钮：
+「✅ 已给她了」走 `'done'`，「↩️ 退回勋章」走 `'cancelled'`，
+后者 `wx.showModal` 二次确认（它动货币，前者不动）。
+
+**`parent.js` 因此只长约 60 行**（待兑现列表 + 两个按钮 + 一个入口按钮），
+看板那 300 多行落在新页面里。
+
 ## 行为规格
 
 ### 家长端 PIN、设置与数据搬迁（`PARENT`）
@@ -733,13 +1101,81 @@ P3-b 明确把名单从「utils 里的平行数组」搬到「任务自己的字
 **「读取入口过滤 `enabled`」与「家长端列全部」是两个相反的需求，
 所以是两个函数**，不是同一个加参数。
 
+### 看板、每日报告与兑换审批（`PARENT`，第三段）
+
+`miniprogram/utils/parentReport.js` 的两个读函数，加 `parentTasks.js` 的
+`resolveRedemption` 与 `parentTasks` 的一个新字段。
+
+| Spec ID   | 输入                                                                  | 期望输出                                                                                                                 |
+| --------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| PARENT-54 | 空存档 `boardState(save, NOW)`                                        | `today.done` 为 `0`、`goal` 为 `6`、`met` 为 `false`、`total` 为 `18`；`week.days` 七条；`trends` 三条各七个 `0`         |
+| PARENT-55 | 当天打了 5 条，其中一条任务已停用                                     | `today.done` 为 `4`（停用的不数）、`total` 为启用中的条数（`17`）—— 与 `PARENT-65` 同一个口径                            |
+| PARENT-56 | `dailyGoal` 为 `4` 且当天完成 4 条                                    | `today.met` 为 `true`；`goal` 与 `total` 是**两个数**（缺陷 12：线上把它们当同一件事的两端）                             |
+| PARENT-57 | `boardState` 的 `week.days`                                           | 七条，键与 `weekKeys(now)` 逐个相等（周一到周日），`today` 只在今天那条为 `true`                                         |
+| PARENT-58 | 只有今天有记录的存档                                                  | 今天那条 `hasRecord` 为 `true`，另六条为 `false`（缺陷 13：不显示成 `0/18`，页面显示「—」）                              |
+| PARENT-59 | 三天核心项打满 5 条、两天只打 2 条                                    | `week.qualifiedDays` 为 `3`（复用 `isQualifiedDay`，不新造第四个「本周」口径）、`minDays` 为 `5`、`bonusDone` 为 `false` |
+| PARENT-60 | 某天 `habit` 类启用 9 条完成 3 条、`health` 类一条都没启用            | 那天 `trends.habit` 为 `33`（四舍五入）、`trends.health` 为 `0`（一条都没启用时落 `0`，照线上 `Sr`）                     |
+| PARENT-61 | `boardState` 的 `trends`                                              | 三条数组长度都是 `7`，下标与 `week.days` 一一对应（页面按下标配对画柱子）                                                |
+| PARENT-62 | 30 个字学过、其中 7 个 `step >= 7`                                    | `totals.charsLearned` 为 `30`、`charsMastered` 为 `7` —— **两个数都给**（头两个月「已掌握」是 0）                        |
+| PARENT-63 | 三天各读 20 / 30 / 40 分钟                                            | `totals.readMinutes` 为 `90`（遍历 `days` 现算，存档里没有累计字段 —— 缺陷 16 是个恒为 0 的死字段）                      |
+| PARENT-64 | 空的一天 `dailyReport(save, key)`                                     | `done` 为 `0`、`doneList` 为 `[]`、`todoList` 为全部启用任务、`sentences` 只有「今天还没有完成记录……」那一句             |
+| PARENT-65 | 当天打了 3 条，其中一条任务已停用                                     | `doneList` 两条、`done` 为 `2`；那条停用任务**两张列表都不含它**（存档里的打卡记录仍在）                                 |
+| PARENT-66 | 任意一天的 `dailyReport`                                              | `doneList.length + todoList.length` 恒等于启用任务数，`done === doneList.length`（三个数一个来源，缺陷 14）              |
+| PARENT-67 | 18 条全启用、一条都没完成                                             | `todoList` 18 条（**不截断** —— 线上 `.slice(0, 8)` 且不提示）                                                           |
+| PARENT-68 | 完成了 `brush-am` 但没完成 `brush-pm`                                 | 句子里只出现「早上刷牙」，不出现「早晚」（缺陷 15：线上写死 `brush-am` 却说「早晚刷牙」）                                |
+| PARENT-69 | 当天 `literacy.newChars` 为 `['天', '地']`                            | `sentences` 多一句「识字学了「天」「地」。」；`learning` 里五个子键各按当天记录给（没有的子键不出现）                    |
+| PARENT-70 | 当天有两条流水、宠物等级 3                                            | `currency` 是当天的净收支（走 `dayEarned`，不重算）、`pet` 是等级与心情的快照                                            |
+| PARENT-71 | `dailyReport(save, '2020-01-01')`（`days` 里没有这个键）              | 不抛错，等同「空的一天」（页面禁止点没有记录的格子，但读函数照 `AGENTS.md` 第 5 节第 6 条只对**非法**入参抛错）          |
+| PARENT-72 | `resolveRedemption(save, key, at, 'done', NOW)`                       | 那条记录 `status` 为 `'done'`；`currency` 一分不动、当天流水**不加行**（申请时已扣）                                     |
+| PARENT-73 | `resolveRedemption(save, key, at, 'cancelled', NOW)`（`medalCost` 3） | `status` 为 `'cancelled'`；`currency.medal` 加 `3`，当天流水多一条 `earn`（退款走 `postLedger`，不直接改 `currency`）    |
+| PARENT-74 | 对一条已经是 `'done'` 的记录再 `resolveRedemption`                    | **原样返回入参**（对象同一性）—— 家长在两处各点一下是竞态，不是编程错误（与 `redeem` 遇到停用卡同一条）                  |
+| PARENT-75 | `at` 在 `redemptions` 里找不到                                        | 抛 `RangeError`（按钮的 `at` 全部来自 `parentTasks` 的输出）                                                             |
+| PARENT-76 | `action` 不是 `'done'` / `'cancelled'`；或 `now` 非有限数             | 前者抛 `RangeError`（页面只有两个按钮），后者抛 `TypeError`（退款要用它落流水）                                          |
+| PARENT-77 | 三条记录（`pending` / `done` / `cancelled`）上 `parentTasks(save)`    | `pending` 只有第一条；三条都 `done` 时 `pending` 为 `[]`（**不是 `null`** —— 线上空时整块卡片消失，缺陷 17 第三处）      |
+
+### 第三段追加到存储层与 `REWARD` 区的规格
+
+线上 `dailyRecords` 的逐键映射（`IMPORT-19` ~ `21`）与 `redemptions.status` 的第三个
+取值（`SAVE-24`）声明在 `docs/features/storage/doc.md`；`'cancelled'` 的状态文案
+（`REWARD-18`）声明在 `docs/features/reward/doc.md`。分工与前两段同一条。
+
+`PARENT-55` / `PARENT-65` 看着重复，钉的是**同一个口径的两个读取入口**：
+看板的今日格与报告的两张列表都要「只数启用中的」，而它们是两个函数
+（`boardState` 数三类合计的数，`dailyReport` 给两张名单）。少了 `PARENT-65`，
+一个只在看板上过滤 `enabled`、报告里照 `checks` 的键数的实现也能全绿 ——
+而那正是线上缺陷 14 的形状。
+
+`PARENT-66` 是一条**不带具体数字**的规格：它断言的是「两张列表构成划分」这个不变式，
+所以造的存档要有停用的任务、有停用任务的打卡记录、有未完成项。
+线上三个数三处各数一次，任意两处的口径不同都能得出「看着对」的界面。
+
+`PARENT-56` 必须与 `PARENT-54` 一起看：`PARENT-54` 里 `goal`（6）与 `total`（18）
+恰好都不等于 `done`，而 `PARENT-56` 造的是 `goal < total` 且完成数正好等于 `goal` 的
+那一天 —— 一个把 `met` 写成 `done >= total` 的实现能过 `PARENT-54`（都是 `false`）
+但过不了 `PARENT-56`。
+
+`PARENT-58` 与 `PARENT-60` 是两种不同的「零」：没有记录（`hasRecord` 为 `false`，
+显示「—」）与真的一条没完成（`0%`，显示一根空柱子）。少了 `PARENT-58`，
+一个把两者都返回 `0` 的实现全绿，而那就是缺陷 13。
+
+`PARENT-72` / `PARENT-73` 是一对，钉的是「两个动作只有一个动货币」：
+少了 `PARENT-72`，一个两条路径都退款的实现能过 `PARENT-73`；
+少了 `PARENT-73`，一个两条路径都不退款的实现能过 `PARENT-72`（就是线上缺陷 17）。
+`PARENT-73` 同时断言流水多了一行 —— 只断言 `currency.medal` 变了会让
+「直接改 `currency` 不走 `postLedger`」这个实现全绿，而那会破掉
+`point.js` 头注释里那条不变式（「`save.currency` 只可能被 `point.js` 改，
+而它每次改都追加一条流水」）。
+
+`PARENT-74` 断言对象同一性，是家长端写入约定第三条的第三次出现
+（`PARENT-15` / `PARENT-39` / `PARENT-47` 之后）。
+
 ## 范围外
 
 - ~~**不做任务管理。**~~ 第二段做了：`utils/parentTasks.js` 的
   `saveHabit` / `addHabit` / `moveHabit`（`PARENT-24` ~ `50`），
   `habit/doc.md` 那条「写入路径在 `PARENT`（P7）」的预告到此兑现。
   但 **`needsParentConfirm` 仍然不给入口** —— 它在全仓零读取点，
-  给一个改了不生效的开关比不给更糟；它的读取路径在第三段（兑换审批）。
+  给一个改了不生效的开关比不给更糟；**第三段把它从「以后」变成了「不做」**（见下）。
 - **不做删除任务，只能停用。** 这不是「以后再做」，是**结论**：历史打卡按 id 存在
   `days[日期键].checks[id]` 里，任务定义一删，`findHabit` 就对那些 id 抛 `RangeError`
   （取消打卡这条路径会崩）。软删除让历史永远解析得出来，代价只是数组不变短。
@@ -764,14 +1200,36 @@ P3-b 明确把名单从「utils 里的平行数组」搬到「任务自己的字
   实际影响是家长改完产出值的当天、孩子取消一次打卡会多扣或少扣 1~2 点 ——
   用一句话说明比改存档结构划算：任务段编辑产出值时提示
   「改动从下一次打卡生效，今天已打的卡取消时按新值退」。
-- **不做导入 `days`（线上 `dailyRecords`）的内部结构。** 线上
-  `completedTasks[id] = { completed, completedAt }` 且取消打卡**写墓碑**，
-  本仓库是 `checks[id] = { at }` 且删键；还要转 ISO、还要处理
-  `learning` / `health` / `ledger` 三个兄弟键。**第三段的看板要读 `days`，那时再接。**
-  所以第二段之后：导入来的任务定义生效了（能打卡、能发星光、能进全勤），
-  历史打卡记录仍是原样透传的线上形状。
-- **不做看板、每日报告、兑换审批。** 第三段。`redemptions` 里
-  `status: 'pending'` 的记录本轮仍然只能看不能批（与 `REWARD` 区现状一致）。
+- ~~**不做导入 `days`（线上 `dailyRecords`）的内部结构。**~~ 第三段做了
+  （`IMPORT-19` ~ `21`）：墓碑不写键、ISO 转毫秒、`learning` / `health` / `ledger`
+  三个兄弟键各自映射。第二段之后那句「导入来的任务定义生效了，历史打卡记录仍是原样
+  透传的线上形状」到此不再成立 —— **全仓最后一份没接的线上数据接上了**，
+  `importOnline.js` 里剩下的三个「不接」是永久不接（理由写在 `storage/doc.md`）。
+- ~~**不做看板、每日报告、兑换审批。**~~ 第三段做了：`utils/parentReport.js` 的
+  `boardState` / `dailyReport`（`PARENT-54` ~ `71`）与 `parentTasks.js` 的
+  `resolveRedemption`（`PARENT-72` ~ `77`）。`redemptions` 从此有第三个状态
+  `'cancelled'`（`SAVE-24` / `REWARD-18`），驳回**退回勋章**（线上不退，
+  因为线上批准时才扣；本仓库 P3-b 改成了申请即扣）。
+- **不做 `needsParentConfirm` 的入口 —— 它保持全仓零读取点。** 第二段把它列在
+  「读取路径在第三段（兑换审批）」，本轮到了跟前却**不做**：它要的是
+  「打卡也要家长审」这条流程，而兑换审批做完之后能看清那是另一件事 ——
+  兑换是孩子主动申请、家长事后兑现（异步、不阻塞孩子）；打卡审批会让
+  孩子点完打卡看不到星光，直到家长打开家长端为止，与「什么算好」第 1 条
+  （即时正反馈）和第 3 条（孩子能独立完成一次互动）都相反。
+  **这条从「以后再做」变成「结论」**：`habit/doc.md` 那句预告要改写。
+- **不做改历史。** 报告只读那一天的记录，没有「补打昨天的卡」「删掉一条流水」的入口。
+  补打要回答「昨天补的卡今天发不发星光、算不算昨天的达标日」，而那会让
+  「流水是那天发生了什么」这条口径失效（退款落在驳回那天而不是申请那天，
+  正是同一条判断的正面用法）。
+- **不做导出报告（图片 / 文字分享）。** 单一家庭自用，愿景「明确不做」里
+  没有分享传播；`wx.setClipboardData` 已经能复制整份存档。
+- **不做周报 / 月报。** 看板已经是「本周」的粒度，月报要先有一张跨月的日历，
+  而它的问题与日报不同（日报回答「今天做了什么」，月报回答「这个月的趋势」）。
+  七日趋势是本轮给的答案，够用之后再说。
+- **不做趋势图的折线 / canvas。** 三条七个整数用 WXSS 柱子画。折线要么上 canvas
+  （要测量、要处理 dpr），要么内联 SVG（小程序不支持），而折线的信息在
+  「七天的形状」上，柱子一样看得出来。线上那份 recharts 依赖迁不过来
+  （本仓库运行时零依赖）。
 - **不做宠物改名。** 它卡在 `choosePet` 会覆盖 `name`（`pet/doc.md` 记着），
   要先解掉那个才能给入口。
 - **不做每日新字数 / 每周首数 / 每天题数可配。** 三份 `doc.md` 都把它列在范围外，

@@ -1,0 +1,357 @@
+/* 家长看板：蒙层 + 两段（看板 / 报告）。
+   与 parent.wxss 刻意同形（蒙层与分段控件是抄过来的那 20 行 + 分段条）——
+   两处的差别在「验过之后显示什么」，样式上没有差别可言。
+   这一页也是给成年人看的：没有渐变、没有 emoji 大图、字号小一号。 */
+
+.board {
+  min-height: 100vh;
+  padding: 32rpx 24rpx 64rpx;
+}
+
+/* ---- 状态一：PIN 蒙层（与 parent.wxss 同形） ---- */
+
+.gate {
+  margin-top: 120rpx;
+  padding: 56rpx 32rpx;
+  border-radius: 32rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+  text-align: center;
+}
+
+.gate__icon {
+  font-size: 72rpx;
+}
+
+.gate__title {
+  margin-top: 16rpx;
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.gate__tip {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+}
+
+.gate__input {
+  margin: 32rpx auto 0;
+  width: 320rpx;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #f0dbe3;
+  font-size: 44rpx;
+  letter-spacing: 16rpx;
+  text-align: center;
+}
+
+.gate__err {
+  margin-top: 20rpx;
+  font-size: 26rpx;
+  color: #c25b7c;
+}
+
+.gate__btn {
+  margin-top: 36rpx;
+  border-radius: 999rpx;
+  background-color: var(--color-primary);
+  color: #fff;
+  font-size: 30rpx;
+}
+
+/* ---- 状态二：两段 ---- */
+
+.tabs {
+  display: flex;
+  margin-top: 8rpx;
+  padding: 6rpx;
+  border-radius: 999rpx;
+  background-color: #fdf3f6;
+}
+
+.tabs__item {
+  flex: 1;
+  padding: 14rpx 0;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  text-align: center;
+  color: #b39aa5;
+}
+
+.tabs__item--on {
+  background-color: #fff;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.sec {
+  margin-top: 24rpx;
+  padding: 28rpx 24rpx;
+  border-radius: 24rpx;
+  background-color: #fff;
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 10%);
+}
+
+.sec__title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+/* 同一张卡里的第二、三、四个小标题：靠上一段留白分开，不再多一张卡 */
+.sec__title--gap {
+  margin-top: 40rpx;
+  padding-top: 24rpx;
+  border-top: 2rpx dashed #f0dbe3;
+}
+
+.sec__now {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  opacity: 0.6;
+}
+
+/* ---- 看板段：今日四个数 ---- */
+
+.today {
+  margin-top: 16rpx;
+}
+
+.today__big {
+  font-size: 40rpx;
+  font-weight: 600;
+}
+
+.today__sub {
+  margin-left: 8rpx;
+  font-size: 24rpx;
+  opacity: 0.6;
+}
+
+.today__met {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  opacity: 0.6;
+}
+
+.today__met--on {
+  color: #4f9d69;
+  opacity: 1;
+}
+
+/* ---- 本周七格日历 ---- */
+
+.week {
+  display: flex;
+  margin-top: 20rpx;
+  gap: 8rpx;
+}
+
+.day {
+  flex: 1;
+  padding: 14rpx 0 10rpx;
+  border-radius: 16rpx;
+  background-color: #fdf3f6;
+  text-align: center;
+}
+
+/* 今天：描一圈边。选中的那天：实心底 —— 两件事可以同时为真 */
+.day--today {
+  border: 2rpx solid var(--color-primary);
+}
+
+.day--on {
+  background-color: #ffe3ec;
+}
+
+/* 没有记录的格子点不动，所以看上去也不该像能点的（缺陷 13） */
+.day--empty {
+  opacity: 0.45;
+}
+
+.day__weekday {
+  font-size: 22rpx;
+  opacity: 0.6;
+}
+
+.day__num {
+  margin-top: 4rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.day__total {
+  font-size: 20rpx;
+  opacity: 0.5;
+}
+
+.day__flag {
+  height: 26rpx;
+  font-size: 20rpx;
+}
+
+/* ---- 三条七日趋势柱 ---- */
+
+.chart {
+  margin-top: 24rpx;
+}
+
+.chart__label {
+  font-size: 24rpx;
+  opacity: 0.7;
+}
+
+.chart__bars {
+  display: flex;
+  margin-top: 8rpx;
+  gap: 8rpx;
+}
+
+.bar {
+  flex: 1;
+  text-align: center;
+}
+
+/* 柱子的槽：固定高度，填充按百分比 —— 零依赖、零 canvas（doc.md） */
+.bar__track {
+  display: flex;
+  align-items: flex-end;
+  height: 120rpx;
+  border-radius: 8rpx;
+  background-color: #fdf3f6;
+  overflow: hidden;
+}
+
+.bar__fill {
+  width: 100%;
+  border-radius: 8rpx;
+  background-color: var(--color-primary);
+}
+
+.bar__day {
+  margin-top: 4rpx;
+  font-size: 20rpx;
+  opacity: 0.5;
+}
+
+/* ---- 四格累计 ---- */
+
+.totals {
+  display: flex;
+  margin-top: 20rpx;
+  flex-wrap: wrap;
+}
+
+.total {
+  width: 50%;
+  padding: 16rpx 0;
+  text-align: center;
+}
+
+.total__num {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.total__label {
+  font-size: 24rpx;
+  opacity: 0.7;
+}
+
+.total__sub {
+  margin-top: 2rpx;
+  font-size: 20rpx;
+  opacity: 0.5;
+}
+
+/* ---- 报告段 ---- */
+
+.flip {
+  display: flex;
+  margin-top: 16rpx;
+  gap: 8rpx;
+}
+
+.flip__item {
+  flex: 1;
+  padding: 12rpx 0;
+  border-radius: 999rpx;
+  background-color: #fdf3f6;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.flip__item--on {
+  background-color: var(--color-primary);
+  color: #fff;
+}
+
+/* 没有记录的那天翻不过去，与日历上那一格同一条 */
+.flip__item--off {
+  opacity: 0.4;
+}
+
+.say {
+  margin-top: 24rpx;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background-color: #fff8e8;
+}
+
+.say__line {
+  font-size: 28rpx;
+  line-height: 1.7;
+}
+
+.list {
+  margin-top: 28rpx;
+}
+
+.list__title {
+  font-size: 26rpx;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 0;
+  border-bottom: 2rpx solid #fdf3f6;
+  font-size: 28rpx;
+}
+
+.item--todo {
+  opacity: 0.55;
+}
+
+.item__icon {
+  width: 48rpx;
+}
+
+.item__name {
+  flex: 1;
+}
+
+.item__note {
+  font-size: 24rpx;
+  opacity: 0.6;
+}
+
+.coins {
+  display: flex;
+  margin-top: 12rpx;
+  justify-content: space-between;
+}
+
+.coins__item {
+  font-size: 28rpx;
+}
+
+.pet {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  opacity: 0.6;
+}

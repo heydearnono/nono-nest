@@ -38,14 +38,28 @@ describe('importOnlineSave 的字段映射', () => {
     expect('profile' in result).toBe(false);
   });
 
-  it('[IMPORT-04] dailyRecords 的日期键原样成为 days 的键', () => {
-    const aug10 = { date: '2026-08-10', completedTasks: { wake: true }, ledger: [] };
-    const aug11 = { date: '2026-08-11', completedTasks: { 'brush-am': true }, ledger: [] };
+  it('[IMPORT-04] dailyRecords 的日期键原样成为 days 的键，元素里的 date 不接', () => {
+    const aug10 = {
+      date: '2026-08-10',
+      completedTasks: { wake: { completed: true, completedAt: '2026-08-10T07:30:00.000Z' } },
+      ledger: [],
+    };
+    const aug11 = {
+      date: '2026-08-11',
+      completedTasks: { 'brush-am': { completed: true } },
+      ledger: [],
+    };
 
     const result = importOnlineSave({ dailyRecords: { '2026-08-10': aug10, '2026-08-11': aug11 } });
 
     expect(Object.keys(result.days)).toEqual(['2026-08-10', '2026-08-11']);
-    expect(result.days['2026-08-10']).toEqual(aug10);
+    // 键原样，**值逐键映射**（P7 第三段起不再是整份透传）：date 与它自己的键重复，不接
+    expect(result.days['2026-08-10']).toEqual({
+      checks: { wake: { at: 1786347000000 } },
+      ledger: [],
+    });
+    expect('date' in result.days['2026-08-10']).toBe(false);
+    expect('completedTasks' in result.days['2026-08-10']).toBe(false);
   });
 
   it('[IMPORT-05] unlockedMedals 成为 achievements', () => {
@@ -128,7 +142,8 @@ const ONLINE_EXPORT = {
   dailyRecords: {
     '2026-08-11': {
       date: '2026-08-11',
-      completedTasks: { wake: true },
+      // 线上一条打卡是 `{ completed, completedAt }`，取消打卡留一条 `{ completed: false }` 的墓碑
+      completedTasks: { wake: { completed: true, completedAt: '2026-08-11T09:30:00.000Z' } },
       learning: {},
       health: {},
       ledger: [{ type: 'earn', stars: 1, reason: '按时起床' }],
@@ -159,8 +174,8 @@ const ONLINE_EXPORT = {
     reading: { totalMinutes: 0, books: [] },
   },
   soundEnabled: true,
-  stickerCollection: {},
-  lastFreeStickerDate: '',
+  stickerCollection: { 'st-000-小狗狗': 2, 'st-018-独角兽': 1 },
+  lastFreeStickerDate: '2026-08-11',
   lastWeeklyBonusWeek: '',
   createdAt: '2026-06-01T02:00:00.000Z',
   updatedAt: '2026-08-11T09:30:00.000Z',
@@ -170,8 +185,9 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
   it('[IMPORT-01] 一份完整线上导出 JSON 得到形状正确的存档', () => {
     const result = importOnlineSave(ONLINE_EXPORT);
 
-    // 顶层键与默认存档完全一致：线上多出来的 8 个键（pointRules、rewardRules、
-    // medalProgress、stickerCollection……）本层不接。learningProgress 只接 literacy 与 guoxue 两支
+    // 顶层键与默认存档完全一致：线上剩下的三个键（pointRules、rewardRules、
+    // medalProgress）**永久不接**。stickerCollection / lastFreeStickerDate 是
+    // 最后两个被接进来的（IMPORT-22），learningProgress 只接 literacy / guoxue / math 三支
     expect(Object.keys(result).sort()).toEqual(Object.keys(defaultSave()).sort());
 
     expect(result.currency).toEqual({ star: 42, gem: 2, petFood: 11, medal: 6 });
@@ -183,7 +199,12 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
     // 元素映射至少要断言一个**改了名的字段**与一个**本仓库独有的字段**
     expect(result.habits[0].starReward).toBe(1);
     expect(result.habits[0].core).toBe(false);
-    expect(result.days['2026-08-11'].completedTasks).toEqual({ wake: true });
+    // days 与 habits 是同一个错误形状的两次（整份透传）：本仓库读的是 checks，
+    // 线上那个键叫 completedTasks —— 一个都不映射的实现在这里也能过掉「键对得上」
+    expect(result.days['2026-08-11'].checks).toEqual({
+      wake: { at: Date.parse('2026-08-11T09:30:00.000Z') },
+    });
+    expect('completedTasks' in result.days['2026-08-11']).toBe(false);
     expect(result.redemptions[0].rewardId).toBe('snack');
     expect(result.achievements).toEqual(['early-bird']);
     expect(result.parent).toEqual({
@@ -240,7 +261,7 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
     ).toEqual({});
   });
 
-  it('[IMPORT-12] exchangeRecords 的三种状态映射成两种，rejected 整条丢掉', () => {
+  it('[IMPORT-12] exchangeRecords 的三种状态映射成三种，rejected 落 cancelled', () => {
     const result = importOnlineSave({
       exchangeRecords: [
         {
@@ -257,7 +278,8 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
       ],
     });
 
-    // rejected 丢掉：本仓库没有「已取消」这个状态，留着它就是一条永远不会兑现的条目
+    // P7 第三段给 status 加了 'cancelled'（SAVE-24），rejected 从此有地方落 ——
+    // **但导入不退款，也无款可退**：线上是批准时才扣，这些记录从来没被扣过勋章
     expect(result.redemptions).toEqual([
       {
         at: Date.parse('2026-08-11T09:30:00.000Z'),
@@ -269,7 +291,10 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
         status: 'done',
       },
       { at: 0, rewardId: 'cartoon', name: '动画片1集', icon: '', medalCost: 3, status: 'pending' },
+      { at: 0, rewardId: 'money', name: '5元零花钱', icon: '', medalCost: 5, status: 'cancelled' },
     ]);
+    // 导入一份线上存档，勋章余额只由 currency 那一条映射决定 —— 驳回记录一分钱都不加
+    expect(result.currency.medal).toBe(0);
     // 线上的 id / resolvedAt 都不迁移
     expect('id' in result.redemptions[0]).toBe(false);
     expect('resolvedAt' in result.redemptions[0]).toBe(false);
@@ -454,5 +479,169 @@ describe('importOnlineSave 对真实线上导出的端到端行为', () => {
         .rewardFlags,
     ).toEqual({});
     expect(JSON.stringify(result)).not.toContain('medalCost":9');
+  });
+
+  it('[IMPORT-19] completedTasks → checks：墓碑不写键，completedAt 转毫秒，bonuses 改名', () => {
+    const result = importOnlineSave({
+      dailyRecords: {
+        '2026-08-10': {
+          date: '2026-08-10',
+          completedTasks: {
+            wake: { completed: true, completedAt: '2026-08-10T07:30:00.000Z' },
+            // 线上取消打卡留一条墓碑（`{ completed: false }`），本仓库 uncheck 删键
+            poop: { completed: false },
+          },
+          bonuses: { dailyAllDone: true },
+        },
+      },
+    });
+    const day = result.days['2026-08-10'];
+
+    expect(day.checks.wake).toEqual({ at: 1786347000000 });
+    // 「键存在即已打卡」是 HABIT 区的不变式：留一个 { at: 0 } 会让 isChecked 说打过，
+    // 而它记录的恰恰是「取消了」
+    expect('poop' in day.checks).toBe(false);
+    expect(day.bonuses).toEqual({ allDone: true });
+    expect('dailyAllDone' in day.bonuses).toBe(false);
+    expect('date' in day).toBe(false);
+
+    // dailyAllDone 不为 true 时整个 bonuses 不写 —— 那天没发过全勤勋章
+    const noBonus = importOnlineSave({
+      dailyRecords: { '2026-08-10': { bonuses: { dailyAllDone: false } } },
+    });
+    expect('bonuses' in noBonus.days['2026-08-10']).toBe(false);
+
+    // 源里没有的子键不凭空补：reading_days 那条成就读的正是 `learning?.reading !== undefined`
+    expect(noBonus.days['2026-08-10']).toEqual({});
+    expect(importOnlineSave({ dailyRecords: 42 }).days).toEqual({});
+    expect(importOnlineSave({ dailyRecords: { '2026-08-10': 42 } }).days).toEqual({});
+  });
+
+  it('[IMPORT-20] health 十一个字段恒等；ledger 四个货币改名补零、元素的 id 丢掉', () => {
+    const health = {
+      sleepHours: 9,
+      sleepQuality: 'good',
+      wakeTime: '07:00',
+      sleepTime: '21:30',
+      exerciseMinutes: 40,
+      exerciseType: '跳绳',
+      poopCount: 1,
+      poopQuality: 'normal',
+      waterCups: 6,
+      lessSugar: true,
+      sugarCount: 1,
+    };
+    const result = importOnlineSave({
+      dailyRecords: {
+        '2026-08-10': {
+          health,
+          ledger: [
+            {
+              id: 'x',
+              at: '2026-08-10T07:30:00.000Z',
+              type: 'earn',
+              stars: 1,
+              foodPoints: 1,
+              reason: '按时起床',
+            },
+          ],
+        },
+      },
+    });
+    const day = result.days['2026-08-10'];
+
+    // 全表唯一一个恒等映射 —— health.js 的 FIELDS 当初就是照线上那张表抄的
+    expect(day.health).toEqual(health);
+
+    expect(day.ledger).toEqual([
+      {
+        at: 1786347000000,
+        type: 'earn',
+        reason: '按时起床',
+        star: 1,
+        // 线上调用方多数只传前两个货币，缺的补 0 —— 不补，dayEarned 求和会变 NaN，
+        // 而 NaN 在界面上显示成「NaN⭐」且不抛错
+        gem: 0,
+        petFood: 1,
+        medal: 0,
+      },
+    ]);
+    // 数组下标就是流水的身份，线上那个 id 不接
+    expect('id' in day.ledger[0]).toBe(false);
+    // 脏元素整条丢掉，坏数组不抛错
+    expect(
+      importOnlineSave({ dailyRecords: { '2026-08-10': { ledger: ['坏', null, 42] } } }).days[
+        '2026-08-10'
+      ].ledger,
+    ).toEqual([]);
+  });
+
+  it('[IMPORT-21] learning 五个子键各自映射，丢掉的三样东西各有理由', () => {
+    const result = importOnlineSave({
+      dailyRecords: {
+        '2026-08-10': {
+          learning: {
+            reading: {
+              minutes: 20,
+              bookTitle: '猜猜我有多爱你',
+              completed: true,
+              coverDataUrl: 'data:image/png;base64,AAAA',
+            },
+            english: { words: ['apple'], completed: true },
+            literacy: { newChars: ['天'], reviewedChars: ['地'], mastered: ['天'] },
+            guoxue: { poemId: 'p1', learned: true, recited: true },
+            math: { gamesPlayed: 3, gamesCorrect: 2, stage: 2 },
+          },
+        },
+      },
+    });
+    const learning = result.days['2026-08-10'].learning;
+
+    // completed 丢掉：完成状态只能有一个真相，那就是 checks（learning.js::isDone 已写下这条）。
+    // coverDataUrl 丢掉：一整张 base64 图片，几十天就撑爆单 key 的 1MB，而它没有显示位置
+    expect(learning.reading).toEqual({ minutes: 20, bookTitle: '猜猜我有多爱你' });
+    expect(learning.english).toEqual({ words: ['apple'] });
+
+    // reviewedChars → reviewed；mastered 丢掉（本仓库从 chars[字].step >= 7 现算）
+    expect(learning.literacy).toEqual({ newChars: ['天'], reviewed: ['地'] });
+
+    // 线上一天一首，本仓库是一个列表 —— 一天能学多首
+    expect(learning.guoxue).toEqual({ poems: ['p1'] });
+
+    // 次数换不出题目 id（与 IMPORT-15 同一处损失），rounds 落空数组
+    expect(learning.math).toEqual({ rounds: [], correct: 2 });
+
+    // 源里没有的子键不出现
+    const only = importOnlineSave({
+      dailyRecords: { '2026-08-10': { learning: { reading: { minutes: 5 } } } },
+    });
+    expect(Object.keys(only.days['2026-08-10'].learning)).toEqual(['reading']);
+    expect(
+      importOnlineSave({ dailyRecords: { '2026-08-10': { learning: 42 } } }).days['2026-08-10'],
+    ).toEqual({});
+  });
+
+  it('[IMPORT-22] 贴纸两个键同名恒等映射，但仍然过收敛', () => {
+    const result = importOnlineSave({
+      stickerCollection: { 'st-000-小狗狗': 3.7, 'st-001-小猫咪': 0, zzz: 2 },
+      lastFreeStickerDate: '2026-08-17',
+    });
+
+    // 恒等映射的规格**不能写成「原样等于原样」**：那是 IMPORT-04 留下的教训 ——
+    // 一条恒真的规格只能证明搬运没出错。这里断言的是**收敛之后长什么样**，
+    // 它同时挡住「忘了把这个键放进 mapped」与「放进去了但绕过了收敛」两种错
+    expect(result.stickerCollection).toEqual({ 'st-000-小狗狗': 3, zzz: 2 });
+    // 0 不是「拥有 0 张」，这个键在存档里不存在（SAVE-25）
+    expect('st-001-小猫咪' in result.stickerCollection).toBe(false);
+    expect(result.lastFreeStickerDate).toBe('2026-08-17');
+
+    // 两个键缺席时落默认值，不抛错
+    expect(importOnlineSave({}).stickerCollection).toEqual({});
+    expect(importOnlineSave({}).lastFreeStickerDate).toBe('');
+
+    // 真实导出那一份：id 形状与本仓库一致，因为本仓库的 id 是照抄线上算出来的那一批
+    const real = importOnlineSave(ONLINE_EXPORT);
+    expect(real.stickerCollection).toEqual({ 'st-000-小狗狗': 2, 'st-018-独角兽': 1 });
+    expect(real.lastFreeStickerDate).toBe('2026-08-11');
   });
 });

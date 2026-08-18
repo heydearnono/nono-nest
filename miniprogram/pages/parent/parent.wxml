@@ -28,7 +28,8 @@
     </button>
   </view>
 
-  <!-- 状态二：家长首页。设置 / 任务 / 数据三段，第三段的看板 / 报告 / 审批不在本轮 -->
+  <!-- 状态二：家长首页。设置 / 任务 / 数据三段。看板与报告在 pages/board/
+       （只读，所以能拆出去；审批是写入口，所以留在任务段，见 doc.md） -->
   <block wx:else>
     <!-- 三段切换只多一个 tab 字段（不新开页面，见 doc.md） -->
     <view class="tabs">
@@ -242,6 +243,40 @@
           <switch checked="{{item.enabled}}" data-id="{{item.id}}" bindchange="onToggleReward" />
         </view>
       </view>
+
+      <!-- 待兑现：卡是「能换什么」，这里是「换了还没给」—— 同一件事的两半。
+           空列表时显示一句话而**不是整块消失**（线上空时 return null，
+           而这是全应用里唯一能看到那条申请的地方，PARENT-77） -->
+      <view class="cards">
+        <view class="cards__label">待兑现</view>
+        <view class="pend__none" wx:if="{{tasks.pending.length === 0}}"> 没有待兑现的兑换。 </view>
+        <view class="pend" wx:for="{{tasks.pending}}" wx:key="at">
+          <view class="pend__head">
+            <text class="pend__icon">{{item.icon}}</text>
+            <text class="pend__name">{{item.name}}</text>
+            <text class="pend__cost">{{item.medalCost}}🏅</text>
+          </view>
+          <view class="pend__btns">
+            <!-- 「已给她了」不动货币（申请时已扣），所以不确认；
+                 「退回勋章」动货币，所以二次确认 -->
+            <view class="pend__btn" data-at="{{item.at}}" bindtap="onTapResolveDone">
+              ✅ 已给她了
+            </view>
+            <view
+              class="pend__btn pend__btn--warn"
+              data-at="{{item.at}}"
+              data-name="{{item.name}}"
+              data-cost="{{item.medalCost}}"
+              bindtap="onTapResolveCancel"
+            >
+              ↩️ 退回勋章
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 看板是只读的，所以在另一页，进去前再验一次 PIN（doc.md） -->
+      <button class="act" bindtap="onTapBoard">打开看板</button>
     </view>
 
     <view class="sec" wx:if="{{tab === 'data'}}">

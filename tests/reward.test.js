@@ -239,6 +239,33 @@ describe('奖励结算（REWARD）', () => {
     expect(redeem(save, DAY, 'cartoon', NOW).currency.medal).toBe(6);
   });
 
+  it('[REWARD-18] 三个状态各有文案，三条记录都在列表里（家长驳回的那条不消失）', () => {
+    const record = (at, status) => ({
+      at,
+      rewardId: 'snack',
+      name: '零食一次',
+      icon: '🍪',
+      medalCost: 3,
+      status,
+    });
+    const save = {
+      ...defaultSave(),
+      redemptions: [record(3, 'cancelled'), record(2, 'done'), record(1, 'pending')],
+    };
+    const state = rewardState(save, DAY, NOW);
+
+    // 文案是「已取消」不是「已退回」：这个状态有两种来历，家长驳回的那些退过勋章，
+    // 而 IMPORT-12 从线上映射来的 rejected 记录从来没被扣过 —— 只能说两边都成立的那句
+    expect(state.redemptions.map((item) => item.statusText)).toEqual([
+      '已取消',
+      '已兑现',
+      '待家长兑现',
+    ]);
+    // 三条都在：兑换记录是历史，驳回不等于删除
+    expect(state.redemptions).toHaveLength(3);
+    expect(state.redemptions.map((item) => item.status)).toEqual(['cancelled', 'done', 'pending']);
+  });
+
   it('rewardState 的顶部数据：今日几条核心项、本周达标几天、这周发过没有', () => {
     const save = withChecks(seeded(), WEEK.slice(0, 5), CORE.slice(0, 5));
     const state = rewardState(withChecks(save, [DAY], CORE), DAY, NOW);

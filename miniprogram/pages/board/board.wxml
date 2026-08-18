@@ -1,0 +1,208 @@
+<!-- 家长看板：蒙层与看板是同一页的两个状态（unlocked 是页面字段，不落盘）。
+     蒙层这一段与 parent.wxml 同形但不共用 —— 差别恰好是「验过之后显示什么」，
+     而那是全部内容（doc.md 记了这笔重复，第三处出现时再抽） -->
+<view class="board" wx:if="{{state}}">
+  <view class="gate" wx:if="{{!unlocked}}">
+    <view class="gate__icon">🔒</view>
+    <view class="gate__title">家长验证</view>
+    <view class="gate__tip">看板是只读的，进去前再验一次</view>
+
+    <input
+      class="gate__input"
+      type="number"
+      password
+      maxlength="4"
+      value="{{input}}"
+      disabled="{{state.locked}}"
+      placeholder="••••"
+      bindinput="onInputPin"
+    />
+
+    <view class="gate__err" wx:if="{{hint}}">{{hint}}</view>
+
+    <button
+      class="gate__btn"
+      disabled="{{state.locked || input.length !== 4}}"
+      bindtap="onTapUnlock"
+    >
+      进去
+    </button>
+  </view>
+
+  <block wx:else>
+    <!-- 两段切换只多一个 tab 字段（与 parent.wxml 同形） -->
+    <view class="tabs">
+      <view
+        class="tabs__item {{tab === 'board' ? 'tabs__item--on' : ''}}"
+        data-tab="board"
+        bindtap="onTapTab"
+      >
+        看板
+      </view>
+      <view
+        class="tabs__item {{tab === 'report' ? 'tabs__item--on' : ''}}"
+        data-tab="report"
+        bindtap="onTapTab"
+      >
+        报告
+      </view>
+    </view>
+
+    <view class="sec" wx:if="{{tab === 'board'}}">
+      <view class="sec__title">今天</view>
+      <!-- 三个数都写出来：goal 与 total 不是同一件事的两端（缺陷 12），
+           括号里那个数说明「目标」不是「全部」 -->
+      <view class="today">
+        <text class="today__big">完成 {{board.today.done}} 项</text>
+        <text class="today__sub"
+          >· 目标 {{board.today.goal}} 项（共 {{board.today.total}} 项）</text
+        >
+      </view>
+      <view class="today__met {{board.today.met ? 'today__met--on' : ''}}">
+        {{board.today.met ? '今天的目标达成了 🎉' : '还没到今天的目标'}}
+      </view>
+
+      <view class="sec__title sec__title--gap">这一周</view>
+      <view class="sec__now">
+        达标 {{board.week.qualifiedDays}}/{{board.week.minDays}} 天 · {{board.week.bonusDone ?
+        '周奖励已发' : '周奖励还没发'}}
+      </view>
+
+      <!-- 七格日历。没有记录的那格显示「—」且点不动（hasRecord 为 false）：
+           那个 0 是「没有数据」，不是「一项都没完成」（缺陷 13） -->
+      <view class="week">
+        <view
+          class="day {{item.today ? 'day--today' : ''}} {{item.hasRecord ? '' : 'day--empty'}} {{item.key === reportKey ? 'day--on' : ''}}"
+          wx:for="{{board.week.days}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          bindtap="onTapDay"
+        >
+          <view class="day__weekday">{{item.weekday}}</view>
+          <view class="day__num">{{item.hasRecord ? item.done : '—'}}</view>
+          <view class="day__total" wx:if="{{item.hasRecord}}">/{{item.total}}</view>
+          <view class="day__flag">{{item.qualified ? '✅' : ''}}</view>
+        </view>
+      </view>
+
+      <view class="sec__title sec__title--gap">七日趋势</view>
+      <!-- 柱子是七个 view 加一个百分比高度，不引图表库、不上 canvas：
+           折线的信息在「七天的形状」上，柱子一样能看出来（doc.md） -->
+      <view class="chart" wx:for="{{charts}}" wx:key="key" wx:for-item="chart">
+        <view class="chart__label">{{chart.label}}</view>
+        <view class="chart__bars">
+          <view
+            class="bar"
+            wx:for="{{chart.values}}"
+            wx:key="index"
+            wx:for-item="value"
+            wx:for-index="dayIndex"
+          >
+            <view class="bar__track">
+              <view class="bar__fill" style="height: {{value}}%"></view>
+            </view>
+            <view class="bar__day">{{board.week.days[dayIndex].weekday}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="sec__title sec__title--gap">一直以来</view>
+      <view class="totals">
+        <!-- 识字给两个数：掌握要熬完六个间隔跨 58 天，只显示「已掌握」
+             会让家长以为识字没在动（同 ACHV-05 那次改动） -->
+        <view class="total">
+          <view class="total__num">{{board.totals.charsLearned}}</view>
+          <view class="total__label">学过的字</view>
+          <view class="total__sub">已掌握 {{board.totals.charsMastered}}</view>
+        </view>
+        <view class="total">
+          <view class="total__num">{{board.totals.poems}}</view>
+          <view class="total__label">学过的诗</view>
+        </view>
+        <view class="total">
+          <view class="total__num">{{board.totals.stage}}</view>
+          <view class="total__label">数学关卡</view>
+        </view>
+        <!-- 这一格换掉了线上那个恒为 0 的 reading.totalMinutes（缺陷 16）：
+             遍历 days 现算，存档里不落累计字段 -->
+        <view class="total">
+          <view class="total__num">{{board.totals.readMinutes}}</view>
+          <view class="total__label">阅读分钟</view>
+          <view class="total__sub">{{board.totals.days}} 天有记录</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="sec" wx:if="{{tab === 'report'}}">
+      <view class="sec__title">{{reportKey}} 的报告</view>
+
+      <!-- 翻天用的就是看板那七个键，不开 picker：datePicker 能选到没有记录的
+           任意一天，而看板已经把这一周摊开了（doc.md） -->
+      <view class="flip">
+        <view
+          class="flip__item {{item.key === reportKey ? 'flip__item--on' : ''}} {{item.hasRecord ? '' : 'flip__item--off'}}"
+          wx:for="{{board.week.days}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          bindtap="onTapDay"
+        >
+          {{item.weekday}}
+        </view>
+      </view>
+
+      <!-- 叙述句在 utils 里拼好，页面只负责换行：一个任务 id 都不写死
+           （线上写死 brush-am 却说「早晚刷牙」，缺陷 15） -->
+      <view class="say">
+        <view class="say__line" wx:for="{{report.sentences}}" wx:key="index">{{item}}</view>
+      </view>
+      <view class="sec__now">
+        完成 {{report.done}} 项 · 目标 {{report.goal}} 项 · {{report.met ? '达成' : '没达成'}}
+      </view>
+
+      <!-- 两张列表构成划分，done 就是前者的长度（三个数一个来源）。
+           todoList 不截断 —— 线上 .slice(0, 8) 且不提示 -->
+      <view class="list" wx:if="{{report.doneList.length > 0}}">
+        <view class="list__title">✅ 已完成</view>
+        <view class="item" wx:for="{{report.doneList}}" wx:key="id">
+          <text class="item__icon">{{item.icon}}</text>
+          <text class="item__name">{{item.name}}</text>
+        </view>
+      </view>
+
+      <view class="list" wx:if="{{report.todoList.length > 0}}">
+        <view class="list__title">⏳ 还没做</view>
+        <view class="item item--todo" wx:for="{{report.todoList}}" wx:key="id">
+          <text class="item__icon">{{item.icon}}</text>
+          <text class="item__name">{{item.name}}</text>
+        </view>
+      </view>
+
+      <!-- 只列当天有记录的子键：凭空补一个空 reading 会让「那天有没有阅读」
+           多出一个假答案（同 IMPORT-19 那条） -->
+      <view class="list" wx:if="{{learningRows.length > 0}}">
+        <view class="list__title">📚 学习</view>
+        <view class="item" wx:for="{{learningRows}}" wx:key="module">
+          <text class="item__icon">{{item.icon}}</text>
+          <text class="item__name">{{item.name}}</text>
+          <text class="item__note" wx:if="{{item.minutes > 0}}">{{item.minutes}} 分钟</text>
+        </view>
+      </view>
+
+      <view class="list">
+        <view class="list__title">🎁 奖励与宠物</view>
+        <!-- currency 走 dayEarned（收入减支出），所以可能是负数 —— 那天换了东西 -->
+        <view class="coins">
+          <text class="coins__item">⭐ {{report.currency.star}}</text>
+          <text class="coins__item">💎 {{report.currency.gem}}</text>
+          <text class="coins__item">🍖 {{report.currency.petFood}}</text>
+          <text class="coins__item">🏅 {{report.currency.medal}}</text>
+        </view>
+        <!-- pet 是**今天的**快照，不是那一天的：存档里没有宠物的历史 -->
+        <view class="pet">
+          小伙伴现在 {{report.pet.petLevel}} 级 · 心情 {{report.pet.mood}}/5（这是现在的样子，
+          不是那一天的）
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

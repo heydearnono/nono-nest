@@ -30,6 +30,13 @@
     </view>
   </view>
 
+  <!-- 贴纸乐园是独立页面，不在这里内联那 140 格：两屏共用的数据只有勋章余额一个数
+       （判据见 docs/features/sticker/doc.md「页面」一节） -->
+  <view class="entry" bindtap="onTapSticker" hover-class="entry--hover">
+    <text class="entry__name">🎨 贴纸乐园</text>
+    <text class="entry__note">1 勋章抽一张 · 每天还有一次免费</text>
+  </view>
+
   <view class="section__title" wx:if="{{state.redemptions.length > 0}}">换过的</view>
   <view class="logs">
     <view class="log" wx:for="{{state.redemptions}}" wx:key="at">

@@ -179,3 +179,157 @@
       本行原写「三处」，`doc.md` 定稿时是四处：软删除 / 只能加 `habit` 类 /
       整段重排 / 只启用停用）
 - [x] 留档本次 prompt 到 `prompts/runs/`
+
+---
+
+# 家长端第三段（看板 + 每日报告 + 兑换审批）· 实施清单
+
+顺序仍是存储层先行（`AGENTS.md` 第 5 节第 2 条），而这一轮存储层是**硬前置**：
+看板与每日报告读的正是 `days` 的**内部结构**，而 `days` 从 P1 起是
+`days: onlineJson.dailyRecords` 整份透传 —— 映射不先做完，一份导入来的存档在看板上
+是「合法但一条都读不出来」（`checks` 这个键根本不存在，线上叫 `completedTasks`）。
+第二段的 `habits` 是同一个错误形状的第一次（「合法但不生效」），
+**规律：整份透传的顶层键，它的规格只会断言到透传的那一层 —— 本轮之后这个数是 `0`。**
+
+`parentReport.js` import `save.js`（拿 `DAILY_GOAL_MAX` 那侧的常量不需要，只要 `days` 的形状约定）、
+`dayKey.js`（`weekKeys`）、`point.js`（`isQualifiedDay` / `dayEarned` / `WEEKLY_BONUS.minDays`）；
+**不 import `habit.js`**（`dayProgress` 只数首页九格，看板要三类合计，需求相反 ——
+与第二段 `parentTasks.js` 不 import `habit.js` 同一条理由）；
+**不 import 任何 `data/`**（趋势与累计全从存档现算）。
+`resolveRedemption` 加在 `parentTasks.js`（它写盘），import `point.js::postLedger`。
+
+## 1. 存储层先行
+
+- [x] `miniprogram/utils/save.js`：`REDEMPTION_STATUS` 加 `'cancelled'`（`SAVE-24`），
+      头注释写明「第三个取值 P7 第三段才有，语义是「退过款了」——
+      所以非法值落 `'pending'` 而**不落** `'cancelled'`」
+- [x] `miniprogram/utils/importOnline.js`：`days: onlineJson.dailyRecords` 改成
+      `daysFromOnline(onlineJson.dailyRecords)`，逐键映射（`IMPORT-19` ~ `21`）
+- [x] `daysFromOnline`：`completedTasks` → `checks`，**`completed !== true` 不写键**
+      （墓碑不算打过卡）、`completedAt` 走 `toMs`；`date` 不接
+- [x] `bonuses.dailyAllDone` → `bonuses.allDone`（改名）
+- [x] `ledger[]`：`stars`/`gems`/`foodPoints`/`medals` 走 `CURRENCY_MAP`，
+      **四个货币缺的一律补 `0`**（否则 `dayEarned` 求和出 `NaN`、界面显示「NaN⭐」不抛错），
+      `at` 走 `toMs`，**元素的 `id` 不接**（本仓库流水按下标是身份）
+- [x] `health` **十一个字段名恒等**照搬（全表唯一一个恒等映射）
+- [x] `learning` 五子键：`reading`/`english` 丢 `completed`（真相只在 `checks`）、
+      `reading` 丢 `coverDataUrl`（base64 图片撑爆 storage）、
+      `literacy` 的 `reviewedChars` → `reviewed` 且丢 `mastered`（从 `step >= 7` 现算）、
+      `guoxue` `{ poemId }` → `{ poems: [poemId] }`、
+      `math` `{ gamesCorrect, stage }` → `{ rounds: [], correct }`
+- [x] `redemptionsFromOnline`：`rejected` **不再整条丢掉**，落 `'cancelled'`（`IMPORT-12`），
+      去掉那句 `.filter((item) => item.status !== 'rejected')`
+- [x] 改 `redemptionsFromOnline` 的头注释：「**`rejected` 整条丢掉** —— 本仓库没有
+      「已取消」这个状态」这句**现在是错的**，改写成「落 `'cancelled'`，但**不退款** ——
+      线上批准时才扣，那些记录从来没被扣过」
+- [x] 头注释里那句「本仓库新加的字段一律不接」的清单不动（`days` 不是新加的字段）
+- [x] `tests/save.test.js` 补 `SAVE-24`
+- [x] `tests/importOnline.test.js` 补 `IMPORT-19` ~ `21`
+- [x] **改 `tests/importOnline.test.js` 的 `IMPORT-04`**：它现在断言
+      `expect(result.days['2026-08-10']).toEqual(aug10)`（整份透传），映射之后不成立
+- [x] **改端到端那条 `[IMPORT-01]`**：`expect(result.days['2026-08-11'].completedTasks)`
+      —— 映射后没有 `completedTasks` 这个键了
+- [x] `ONLINE_EXPORT` fixture 里 `completedTasks: { wake: true }` 改成真实形状
+      `{ wake: { completed: true, completedAt: '…' } }` ——
+      布尔那份 fixture 从来没暴露过墓碑与 ISO 转换
+
+## 2. 术语与既有文档
+
+- [x] `docs/glossary.md`：家长端一节补 `'cancelled'` / `qualified` / `hasRecord` 三条，
+      并把「后四条是 P7 第二段登记的」拆成两句（后两个是 `parentReport.js` 的读取输出，
+      不是存档字段）
+- [x] `docs/features/storage/doc.md`：映射表 `dailyRecords` 一行拆成八行、
+      `SAVE-24` / `IMPORT-19` ~ `21` 四条、改 `IMPORT-04` 与 `IMPORT-12` 两行、
+      「一个键可以有映射而不收敛」一段、「给一个枚举加取值要去数谁在穷举它」一段
+- [x] `docs/features/reward/doc.md`：补 `REWARD-18` 与「第三个状态」一节，
+      划掉「不做家长审批与驳回」「不做撤销兑换」两条范围外
+- [x] `docs/features/habit/doc.md`：`needsParentConfirm` 从「以后再说」改成「不做」
+      （兑换是异步不阻塞孩子，打卡审批会让孩子点完看不到星光）
+
+## 3. `parentReport.js` 两个纯读函数
+
+- [x] 写 `miniprogram/utils/parentReport.js`：`boardState` / `dailyReport`，
+      **一个写函数都没有**（拆模块的判据是「它写不写盘」，头注释写下这条）
+- [x] `boardState`：`today` / `week` / `trends` / `totals` 四段
+- [x] `today.done` 数**三类合计的启用中任务**（不是 `dayProgress` 的九格），
+      `goal` 是 `dailyGoal`、`total` 是启用中的条数 —— 三个数都给页面
+- [x] `week.days` 七条来自 `weekKeys(now)`，每条 `{ key, weekday, done, total,
+hasRecord, qualified, today }`；`qualified` 复用 `point.js::isQualifiedDay`
+- [x] `hasRecord` 只看 `days` 里有没有那个键 —— 与「一项都没完成」是两种不同的零
+- [x] `week.minDays` 读 `WEEKLY_BONUS.minDays`（页面不写 `5`），
+      `bonusDone` 比 `lastWeeklyBonusWeek` 与 `weekKeys(now)[0]`
+- [x] `trends` 三条各七个整数：`round(该类启用中完成 / 该类启用中的条数 × 100)`，
+      **一条都没启用落 `0`**（照线上 `Sr`），下标与 `week.days` 一一对应
+- [x] `totals`：`charsLearned` / `charsMastered`（识字两个数都给）/ `poems` /
+      `stage` / `readMinutes`（**遍历 `days` 现算**，不落盘累计字段）/ `days`
+- [x] `dailyReport(save, key)`：`doneList` / `todoList` 两张列表构成划分，
+      `done = doneList.length`（**不另数一次**）
+- [x] 停用的任务两张列表都不含它（即使当天打过卡）
+- [x] `todoList` **不截断**（线上 `.slice(0, 8)` 且无提示）
+- [x] `sentences` 三条规则全从数据来，**一个任务 id 都不写死**
+      （线上写死 `brush-am` 却说「早晚刷牙」）；不做那句重复触发的「建议明天继续复习」
+- [x] `currency` 走 `point.js::dayEarned`（不重算），`pet` 是等级与心情的快照
+- [x] `days` 里没有那个键时等同「空的一天」，**不抛错**
+      （只对非法入参抛错，`AGENTS.md` 第 5 节第 6 条）
+
+## 4. `resolveRedemption` 与 `parentTasks` 的新字段
+
+- [x] `miniprogram/utils/parentTasks.js` 加
+      `resolveRedemption(save, key, at, action, now)` —— 一个函数两个动作
+      （线上分两个，其中 `rejectExchange` 漏了状态检查）
+- [x] 记录的身份是 `at` 不是数组下标（列表渲染之后孩子还能再申请）
+- [x] `'done'`：纯状态迁移，**货币一分不动、流水不加行**（申请时已扣）
+- [x] `'cancelled'`：退 `medalCost`，**走 `postLedger(next, key, 'earn', { star: 0,
+gem: 0, petFood: 0, medal: record.medalCost }, `退回：${record.name}`, now)`** ——
+      不直接改 `currency`（`point.js` 的不变式）
+- [x] 退款落在**驳回那一天**的流水里（`key` 是入参，`utils/` 不读时钟）
+- [x] `at` 找不到抛 `RangeError`；`action` 非法抛 `RangeError`；
+      `now` 非有限数抛 `TypeError`；那条已不是 `'pending'` 时**原样返回入参**
+- [x] `parentTasks(save)` 加 `pending` 字段（与三张兑换卡并列），
+      **空列表是 `[]` 不是 `null`**（线上空时整块卡片消失）
+- [x] `miniprogram/utils/reward.js`：`STATUS_TEXT` 补 `cancelled: '已取消'`（`REWARD-18`），
+      `rewardState().redemptions` 三种状态**全列**（不过滤已取消的）
+
+## 5. 测试
+
+- [x] 写 `tests/parentReport.test.js`，覆盖 `PARENT-54` ~ `PARENT-71`
+- [x] `tests/parentTasks.test.js` 补 `PARENT-72` ~ `PARENT-77`
+- [x] `tests/reward.test.js` 补 `REWARD-18`（三条 `statusText` + 三条都在列表里）
+- [x] `PARENT-55` / `PARENT-65` 是一对：少了后者，一个只在看板上过滤 `enabled` 的
+      实现也能全绿 —— 那正是线上缺陷 14 的形状
+- [x] `PARENT-56` 要造 `goal < total` 且完成数正好等于 `goal` 的那一天
+      （把 `met` 写成 `done >= total` 的实现能过 `PARENT-54`、过不了 `56`）
+- [x] `PARENT-58` / `PARENT-60` 是两种不同的「零」，少了前者就是缺陷 13
+- [x] `PARENT-66` 是不带具体数字的不变式规格：存档要有停用任务、
+      有停用任务的打卡记录、有未完成项
+- [x] `PARENT-72` / `PARENT-73` 是一对，后者**同时断言流水多了一行**
+      （只断言 `currency.medal` 变了会让「直接改 `currency`」全绿）
+- [x] `PARENT-74` 断言对象同一性（`toBe`）
+- [x] 按 `AGENTS.md` 第 13 条：`boardState` / `dailyReport` / `parentTasks` 的规格
+      断言读取入口的输出，`resolveRedemption` 的规格断言存档里落了什么
+
+## 6. 页面
+
+- [x] `miniprogram/pages/board/` 四个文件（第 12 个 page，**`app.json` 不加第五个 tab**）
+- [x] 看板页自己一层 PIN 蒙层，与 `parent.js` 那层**同形但不共用**
+      （重复的只有那 20 行，第三处出现时再抽 —— 这笔债记在 `doc.md` 里）
+- [x] 看板一页两段（`tab` 字段，与 `parent.js` 同形）：看板段 / 报告段
+- [x] 看板段：今日四个数（页面写「完成 5 项 · 目标 6 项（共 18 项）」）+
+      本周七格日历 + 三条七日趋势**柱子**（WXSS 百分比高度，不上 canvas）+ 四格累计
+- [x] `hasRecord` 为 `false` 的格子显示「—」且**点不动**
+- [x] 报告段：翻天用 `week.days` 那七个键，**不开 `picker`**；
+      叙述句 + ✅ 已完成 / ⏳ 未完成 / 📚 学习 / 🎁 奖励与宠物
+- [x] `pages/parent/parent.js`：任务段补待兑现列表（约 60 行），
+      每条两个按钮「✅ 已给她了」/「↩️ 退回勋章」，后者 `wx.showModal` 二次确认
+- [x] 任务段加一个「打开看板」按钮跳 `pages/board/board`
+- [x] 没有待兑现时显示一句「没有待兑现的兑换」（不是整块消失）
+- [x] 每次写入后 `if (next === this.save) return`，再落盘
+
+## 7. 收尾
+
+- [x] 跑 `npm run format`，再跑 `npm run check`，全绿
+- [x] 写 `summary.md`（追加第三段一节）：实际做法、与 `doc.md` 的偏差、
+      还剩什么（`stickerCollection` / `lastFreeStickerDate` 仍未接）
+- [x] `docs/vision.md`：P7 的状态从「进行中」改成「已完成」，补第三段的结论
+      （三处偏离、七个新缺陷、`needsParentConfirm` 从「以后」变「不做」）
+- [x] 留档本次 prompt 到 `prompts/runs/`

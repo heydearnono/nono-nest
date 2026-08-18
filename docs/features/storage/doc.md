@@ -10,9 +10,15 @@
   P5 古诗追加了 `learningProgress.guoxue`（`SAVE-17` / `IMPORT-14`），
   P5 数学追加了 `learningProgress.math`（`SAVE-18` / `IMPORT-15`），
   P7 第一段追加了 `parent` 的两个 PIN 水位（`SAVE-19` / `IMPORT-16`），
-  **P7 第二段追加了 `habits` 的元素收敛与线上 `tasks` 的字段映射
+  P7 第二段追加了 `habits` 的元素收敛与线上 `tasks` 的字段映射
   （`SAVE-20` ~ `SAVE-22` / `IMPORT-17`）、顶层键 `rewardFlags`
-  （`SAVE-23` / `IMPORT-18`）**
+  （`SAVE-23` / `IMPORT-18`），
+  **P7 第三段追加了线上 `dailyRecords` 的逐键映射（`IMPORT-19` ~ `21`，
+  全仓最后一个整份透传的顶层键）与 `redemptions.status` 的第三个取值
+  `'cancelled'`（`SAVE-24`）**，
+  **`STICKER` 一轮追加了顶层键 `stickerCollection` / `lastFreeStickerDate`
+  （`SAVE-25` / `SAVE-26` / `IMPORT-22`）—— 线上 19 个顶层键里最后两个带挂账的，
+  接完之后「以后再说」的名单是空的**
 - 关联愿景：`docs/vision.md` P1
 
 ## 背景
@@ -63,40 +69,56 @@ importOnlineSave(onlineJson) -> save
 线上的字段名与 `docs/glossary.md` 的规范命名不一致。本仓库存档一律用 glossary 的词，
 导入时做一次映射。代价是映射表要维护，收益是后续所有业务代码只需记一套名字。
 
-| 线上字段                   | 本仓库字段               | 说明                                                            |
-| -------------------------- | ------------------------ | --------------------------------------------------------------- |
-| `currency.stars`           | `currency.star`          | 单复数统一为单数                                                |
-| `currency.gems`            | `currency.gem`           |                                                                 |
-| `currency.foodPoints`      | `currency.petFood`       | 「份数」是界面说法，存的是点数                                  |
-| `currency.medals`          | `currency.medal`         |                                                                 |
-| `pet.satiety`              | `pet.fullness`           | 取值 0–5 原样保留，不换刻度                                     |
-| —（线上没有）              | `pet.lastFedAt`          | 饱腹度衰减的基准，导入时落 `0`                                  |
-| `pet.happiness`            | `pet.mood`               | 取值 0–5 原样保留                                               |
-| `pet.level`                | `pet.petLevel`           | 避免与数学 `stage` 的层级概念混淆                               |
-| `pet.exp`                  | `pet.petExp`             |                                                                 |
-| `profile.name`             | `childName`              | 提到顶层，存档只服务一个孩子                                    |
-| `profile.avatarEmoji`      | `childAvatar`            |                                                                 |
-| `parentSettings.pin`       | `parent.pin`             |                                                                 |
-| `parentSettings.dailyGoal` | `parent.dailyGoal`       | 本层夹到 `1` ~ `12`（线上只在设置页夹）                         |
-| `parentSettings.note`      | `parent.note`            |                                                                 |
-| —（线上没有）              | `parent.pinFails`        | PIN 连错次数，导入时落 `0`                                      |
-| —（线上没有）              | `parent.pinLockedUntil`  | 冷却到期时刻，导入时落 `0`                                      |
-| `dailyRecords`             | `days`                   | 键仍是 `dayKey`，格式不变                                       |
-| `tasks`                    | `habits`                 | glossary 里 `habit` 指自律任务                                  |
-| `tasks[].starsReward`      | `habits[].starReward`    | 元素也要映射，见 `IMPORT-17`                                    |
-| `tasks[].foodPointsReward` | `habits[].petFoodReward` |                                                                 |
-| `tasks[].subCategory`      | —（不接）                | 线上只写不读，本仓库无对应概念                                  |
-| —（线上没有）              | `habits[].core`          | 今日全勤名单，导入时落 `false`                                  |
-| `exchangeRecords`          | `redemptions`            | 元素也要映射，见 `IMPORT-12`                                    |
-| `unlockedMedals`           | `achievements`           | 存的是成就 id，不是货币                                         |
-| —（线上有但不接）          | `rewardFlags`            | 线上 `rewardRules` 默认全启用，映射恒等于默认值，见 `IMPORT-18` |
-| `lastWeeklyBonusWeek`      | 同名                     | 周一的 `dayKey`，形状不变                                       |
-| `createdAt` / `updatedAt`  | 同名                     | ISO 字符串转成毫秒数                                            |
+| 线上字段                              | 本仓库字段               | 说明                                                            |
+| ------------------------------------- | ------------------------ | --------------------------------------------------------------- |
+| `currency.stars`                      | `currency.star`          | 单复数统一为单数                                                |
+| `currency.gems`                       | `currency.gem`           |                                                                 |
+| `currency.foodPoints`                 | `currency.petFood`       | 「份数」是界面说法，存的是点数                                  |
+| `currency.medals`                     | `currency.medal`         |                                                                 |
+| `pet.satiety`                         | `pet.fullness`           | 取值 0–5 原样保留，不换刻度                                     |
+| —（线上没有）                         | `pet.lastFedAt`          | 饱腹度衰减的基准，导入时落 `0`                                  |
+| `pet.happiness`                       | `pet.mood`               | 取值 0–5 原样保留                                               |
+| `pet.level`                           | `pet.petLevel`           | 避免与数学 `stage` 的层级概念混淆                               |
+| `pet.exp`                             | `pet.petExp`             |                                                                 |
+| `profile.name`                        | `childName`              | 提到顶层，存档只服务一个孩子                                    |
+| `profile.avatarEmoji`                 | `childAvatar`            |                                                                 |
+| `parentSettings.pin`                  | `parent.pin`             |                                                                 |
+| `parentSettings.dailyGoal`            | `parent.dailyGoal`       | 本层夹到 `1` ~ `12`（线上只在设置页夹）                         |
+| `parentSettings.note`                 | `parent.note`            |                                                                 |
+| —（线上没有）                         | `parent.pinFails`        | PIN 连错次数，导入时落 `0`                                      |
+| —（线上没有）                         | `parent.pinLockedUntil`  | 冷却到期时刻，导入时落 `0`                                      |
+| `dailyRecords`                        | `days`                   | 键仍是 `dayKey`，**值逐键映射**，见 `IMPORT-19` ~ `21`          |
+| `dailyRecords[].date`                 | —（不接）                | 与它自己的键重复                                                |
+| `dailyRecords[].completedTasks`       | `days[].checks`          | `{ completed, completedAt }` → `{ at }`，**墓碑不写键**         |
+| `dailyRecords[].bonuses.dailyAllDone` | `days[].bonuses.allDone` | 布尔，改名                                                      |
+| `dailyRecords[].health`               | 同名                     | **十一个字段名全部恒等**，见 `IMPORT-20`                        |
+| `dailyRecords[].learning`             | 同名                     | 五个子键各自映射，`completed` 与 `coverDataUrl` 不接            |
+| `dailyRecords[].ledger[].stars`       | `days[].ledger[].star`   | 四个货币同 `currency`，缺的补 `0`                               |
+| `dailyRecords[].ledger[].id`          | —（不接）                | 本仓库的流水没有 id（数组下标就是它的身份）                     |
+| `tasks`                               | `habits`                 | glossary 里 `habit` 指自律任务                                  |
+| `tasks[].starsReward`                 | `habits[].starReward`    | 元素也要映射，见 `IMPORT-17`                                    |
+| `tasks[].foodPointsReward`            | `habits[].petFoodReward` |                                                                 |
+| `tasks[].subCategory`                 | —（不接）                | 线上只写不读，本仓库无对应概念                                  |
+| —（线上没有）                         | `habits[].core`          | 今日全勤名单，导入时落 `false`                                  |
+| `exchangeRecords`                     | `redemptions`            | 元素也要映射，见 `IMPORT-12`                                    |
+| `unlockedMedals`                      | `achievements`           | 存的是成就 id，不是货币                                         |
+| —（线上有但不接）                     | `rewardFlags`            | 线上 `rewardRules` 默认全启用，映射恒等于默认值，见 `IMPORT-18` |
+| `lastWeeklyBonusWeek`                 | 同名                     | 周一的 `dayKey`，形状不变                                       |
+| `stickerCollection`                   | 同名                     | **恒等映射但仍然收敛**，见 `IMPORT-22`                          |
+| `lastFreeStickerDate`                 | 同名                     | `dayKey` 形状不变，非日期键落空串                               |
+| `createdAt` / `updatedAt`             | 同名                     | ISO 字符串转成毫秒数                                            |
 
 `tasks` 那三行是 P7 第二段补的。**在此之前 `habits` 是整份透传的**
 （`habits: onlineJson.tasks`），于是导入一份线上存档，18 条任务的产出值读不到
 （`rewardOf` 读 `starReward`，线上是 `starsReward`）、`core` 全都缺席
 （今日全勤永久不发）—— **合法但不生效**。详见 `docs/features/parent/doc.md`。
+
+`dailyRecords` 那八行是 P7 第三段补的，**在此之前 `days` 也是整份透传的**
+（`days: onlineJson.dailyRecords`）。同一个错误形状连着犯了两次：
+`habits` 是「合法但不生效」，`days` 是「合法但一条都读不出来」——
+`utils/reward.js` 里四条判据读 `day.checks` / `day.learning` / `day.bonuses.allDone`，
+而导入来的那份存档里这三个键**一个都不存在**（线上叫 `completedTasks` / `bonuses.dailyAllDone`）。
+**规律：一个整份透传的顶层键，在有人第一次读它的内部结构时才暴露它没被映射。**
 
 `pet.unlockedDecor` 在线上是死字段（只有默认值和导入合并，无任何写入路径），**不迁移**。
 `learningProgress.english.streak`、`reading.totalMinutes`、`reading.books` 同为只读不写的
@@ -120,6 +142,8 @@ importOnlineSave(onlineJson) -> save
   redemptions: [],        // 兑换记录，最新在前。元素结构见 features/reward
   achievements: [],       // 已解锁成就 id
   rewardFlags: {},        // 兑换卡的启用开关，rewardId -> 布尔。缺键 = 启用（见 features/parent）
+  stickerCollection: {},  // 贴纸收藏册，stickerId -> 抽到过几次。键存在即拥有（见 features/sticker）
+  lastFreeStickerDate: '', // 上次用掉免费抽的 dayKey，空串 = 从未免费抽过
   lastWeeklyBonusWeek: '', // 上次发过周奖励的周键（weekKeys()[0]），空串 = 从未发过
   learningProgress: {     // 跨天的学习进度，各学习模块一个子键
     literacy: { chars: {} },   // 字 -> { step, due, wrong }，见 features/literacy
@@ -345,9 +369,18 @@ achievements: ['early-bird'],   // 成就 id 的字符串数组，去重
 ```
 
 `redemptions` 的元素：非对象的丢掉；`at` / `medalCost` 收敛成非负整数；
-`rewardId` / `name` / `icon` 收敛成字符串；`status` 只认 `'pending'` / `'done'`，
+`rewardId` / `name` / `icon` 收敛成字符串；`status` 只认
+`'pending'` / `'done'` / `'cancelled'`（第三个是 P7 第三段加的，`SAVE-24`），
 其余落 `'pending'`。**落 `'pending'` 而不是 `'done'`**：坏数据宁愿留在待兑现列表里
-让家长看见，也不要悄悄变成「已经给过了」。
+让家长看见，也不要悄悄变成「已经给过了」。**也不落 `'cancelled'`**：
+那会让一条坏记录连勋章都不退（`'cancelled'` 的语义是「退过款了」）。
+
+**`'cancelled'` 是本层唯一一次「加一个状态取值」，而它的成本落在三处别的地方**：
+`reward.js::STATUS_TEXT` 要有第三行（否则 `?? STATUS_TEXT.pending` 会把它标成
+「待家长兑现」—— `reward/doc.md` 早就写过「页面不自己映射文案，否则这种 bug
+要等到有了第三个状态才暴露」，本轮就是那一轮）；`importOnlineSave` 对线上
+`rejected` 的处置要改（见 `IMPORT-12`）；家长端的驳回要退勋章（`PARENT-73`）。
+**规律：给一个枚举加取值，要去数「谁在穷举它」—— 用 `??` 兜底的那些地方不会报错，只会说错话。**
 
 `name` / `icon` / `medalCost` 是**快照**（线上同样）：家长将来改了奖励的名字或价格，
 历史记录仍显示当时兑的是什么、花了多少。所以本层不去 `data/rewards.js` 里查这三个值。
@@ -358,6 +391,13 @@ achievements: ['early-bird'],   // 成就 id 的字符串数组，去重
 **为什么这两个数组要收敛而 `days` 不用**：`days` 的内部结构由各 feature 各自定义，
 本层认不出好坏；而这两个数组的元素字段就是几个数和几个字符串，收敛在这里做一次，
 `utils/reward.js` 的读取路径不必每处再夹一遍（与 `learningProgress.literacy.chars` 同一条）。
+
+**这句话到 P7 第三段仍然成立，而它与「`days` 要不要映射」是两个问题。**
+本轮给 `days` 加了完整的线上映射（`IMPORT-19` ~ `21`），但**没有**给它加收敛
+（`normalizeSave` 对 `days` 仍是 `obj(raw.days)`）—— 映射是「把外来的形状翻译成本仓库的」，
+收敛是「把脏值夹成合法值」。前者需要知道两边的字段名（`importOnline.js` 知道），
+后者需要知道每个字段的合法域（那仍然分散在各 feature 里）。
+**规律：一个键可以「有映射但不收敛」—— 两件事的前提知识不同。**
 
 **`habits` 原本也在这份「不收敛」名单里，P7 第二段把它接进来了**（见下节）——
 接的理由不是「本层终于认得出它的元素」，而是**它第一次有了写入路径**：
@@ -462,6 +502,48 @@ rewardFlags: { snack: true, cartoon: true, money: false },
 `parent.pinFails` 同一条（线上没有对应概念，导入不猜）；区别是这一条
 线上**有**数据，只是搬过来没有信息量。
 
+### 贴纸的两个顶层键（`SAVE-25` / `SAVE-26` / `IMPORT-22`，`STICKER` 一轮）
+
+```js
+stickerCollection: { 'st-000-小狗狗': 3, 'st-018-独角兽': 1 },
+lastFreeStickerDate: '2026-08-17',
+```
+
+这是**「线上有而本仓库不接」那张名单上最后两个带挂账的条目**，接完之后名单上
+只剩三个「永久不接」（见下文）。
+
+`stickerCollection` 是 `stickerId` → **抽到过几次**。收敛四条（`SAVE-25`）：
+
+- 非对象（数组 / `null` / 字符串）整份落 `{}`；
+- 值取整（`3.7` → `3`）；
+- **`0` / 负数 / 非数的键整条丢掉** —— 与 `days[].checks` 的墓碑同一条
+  （`IMPORT-19`：`completed !== true` 不写键）。线上页面用
+  `Object.keys(e).filter(t => e[t] > 0)` 数收藏数（`.scratch/index-VUOSJfWA.js:677950`），
+  说明线上自己也承认收藏册里会有 `0`。本层把 `0` 丢掉之后，
+  **读取侧一律判「键在不在」**，不需要第二个判据；
+- **未知 id 原样留着** —— 与 `rewardFlags` 逐字同一条（`SAVE-23`）：本层不能 import
+  `data/stickers.js`，认不出哪个 id 登记过。忽略未知 id 的是
+  `utils/sticker.js` 的读取路径（`STICKER-06`）。
+
+`lastFreeStickerDate` 是**第四个 `dayKey` 水位**，收敛与 `lastWeeklyBonusWeek`
+逐字相同：只认日期键形状，其余落空串（`SAVE-26`）。落空串的后果是
+「今天可能再免费抽一次」，落一个乱码的后果是「`'乱码' !== 今天` 恒成立 ——
+每天都能抽，而且永远抽不完」。两个方向的错都指向多给一次，
+所以这条收敛策略在这里比在周奖励那里更安全。
+
+两个键都是**同名恒等映射**（`IMPORT-22`）：线上 `stickerCollection` 的形状
+（`stickerId` → 次数）与本仓库一致，因为本仓库的贴纸 id 是照抄线上
+由下标算出来的那一批；`lastFreeStickerDate` 与线上 `sr()` 同形。
+**但恒等映射不等于整份透传**：元素收敛在 `normalizeSave` 里做，
+所以一份带 `0` 值、带 `3.7`、带脏 id 的线上收藏册进来会被收拾干净。
+范围外那条「**一个键可以有映射而不收敛**」在这里是反面 ——
+**一个键可以是恒等映射而仍然被收敛**：映射表管「叫什么」，
+`normalizeSave` 管「长什么样」，两件事分开。
+
+`IMPORT-22` 因此**不断言「原样等于原样」**：那种恒真规格正是 `IMPORT-04` 留下的教训
+（见下文的规律）。它断言的是收敛之后的结果 —— `0` 值那条不见了、`3.7` 变成 `3`、
+脏 id 还在。
+
 本文件只覆盖**存档的形状、默认值补齐、日期键、线上导入映射**。
 具体业务规则（打卡怎么发星光、宠物怎么升级、复习怎么排）各自在后续 feature 的 `doc.md` 里，
 本文件不写它们的公式。
@@ -518,6 +600,9 @@ rewardFlags: { snack: true, cartoon: true, money: false },
 | SAVE-21 | `habits` 含 `id` 为空串 / 非字符串 / 缺失的元素，一个非对象元素，以及两条 `id` 都是 `'wake'` 的元素                                                                                                         | 前三条与非对象元素**整条丢掉**；重复 `id` 只留第一条                                                                                                                                                                          |
 | SAVE-22 | `habits` 含 `category: 'learning'` 且 `module: 'poem'` 的一条、`category: 'habit'` 的一条、`frequency: 'weekly'` 且 `weeklyTarget: 3` 的一条、`frequency: 'daily'` 且 `weeklyTarget: 3` 的一条              | `module` 只在 `learning` 那条上存在（`habit` 那条**没有这个键**，不是空串）；`weeklyTarget` 只在 `weekly` 那条上存在（`daily` 那条**没有这个键**）                                                                            |
 | SAVE-23 | `normalizeSave({})` / `defaultSave()`；以及 `rewardFlags` 为 `{ snack: 0, cartoon: 'x', money: false, zzz: true }` / 为数组 / 为 `null`                                                                     | 默认落 `{}`（缺键 = 启用）；值收敛成布尔（`0` → `false`、`'x'` → `true`）、**未知 id `zzz` 原样留着**；非对象整份落 `{}`                                                                                                      |
+| SAVE-24 | `redemptions` 含 `status` 为 `'cancelled'` / `'rejected'` / `'weird'` 三条元素                                                                                                                              | `'cancelled'` **原样保留**（第三个合法取值，P7 第三段的驳回落它）；另两条都落 `'pending'`（**不落 `'cancelled'`** —— 那个状态的语义是「退过款了」）                                                                           |
+| SAVE-25 | `normalizeSave({})` / `defaultSave()`；以及 `stickerCollection` 为 `{ 'st-000-小狗狗': 3.7, 'st-001-小猫咪': 0, 'st-002-小兔子': -2, 'st-003-小熊熊': 'x', zzz: 2 }` / 为数组 / 为 `null`                   | 默认落 `{}`；`3.7` 取整成 `3`；**`0` / 负数 / 非数那三个键整条不存在**（键存在即拥有）；**未知 id `zzz` 原样留着**（本层零 import，与 `SAVE-23` 同一条）；非对象整份落 `{}`                                                   |
+| SAVE-26 | `normalizeSave({})` / `defaultSave()`；以及 `lastFreeStickerDate` 为 `'2026-08-17'` / `'乱码'` / `'2026-8-17'` / 数字                                                                                       | 默认落 `''`；合法日期键原样保留；后三种都落 `''`（与 `lastWeeklyBonusWeek` 逐字同一条收敛）                                                                                                                                   |
 
 存档来自 storage，可能被手改或被旧版本写坏，所以 `normalizeSave` **不抛错**：
 一律收敛到合法值。这与 `utils/` 里其它纯函数对非法入参抛 `RangeError` 的约定不同 ——
@@ -526,26 +611,30 @@ rewardFlags: { snack: true, cartoon: true, money: false },
 
 ### 线上 JSON 导入（`IMPORT`）
 
-| Spec ID   | 输入                                                                                                                               | 期望输出                                                                                                                                                                                                                                                                                                         |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| IMPORT-01 | 含 `currency.stars/gems/foodPoints/medals`                                                                                         | 映射到 `star/gem/petFood/medal`，数值不变                                                                                                                                                                                                                                                                        |
-| IMPORT-02 | 含 `pet.satiety/happiness/level/exp`                                                                                               | 映射到 `fullness/mood/petLevel/petExp`                                                                                                                                                                                                                                                                           |
-| IMPORT-03 | 含 `profile.name`                                                                                                                  | 映射到顶层 `childName`                                                                                                                                                                                                                                                                                           |
-| IMPORT-04 | 含 `dailyRecords` 的两个日期键                                                                                                     | 原样成为 `days` 的两个键                                                                                                                                                                                                                                                                                         |
-| IMPORT-05 | 含 `unlockedMedals: ['early-bird']`                                                                                                | 成为 `achievements: ['early-bird']`                                                                                                                                                                                                                                                                              |
-| IMPORT-06 | 含 `pet.unlockedDecor`                                                                                                             | 丢弃该字段                                                                                                                                                                                                                                                                                                       |
-| IMPORT-07 | 空对象 `{}`                                                                                                                        | 等于 `defaultSave()`，不抛错                                                                                                                                                                                                                                                                                     |
-| IMPORT-08 | 非对象输入                                                                                                                         | 抛 `TypeError`（导入是用户主动动作，要报错）                                                                                                                                                                                                                                                                     |
-| IMPORT-09 | `createdAt` 为 ISO 字符串                                                                                                          | 转成毫秒数；无法解析时取默认值 `0`                                                                                                                                                                                                                                                                               |
-| IMPORT-10 | 任意线上 JSON                                                                                                                      | `pet.lastFedAt` 为 `0`（线上无此字段）                                                                                                                                                                                                                                                                           |
-| IMPORT-11 | 线上 `learningProgress.literacy` 的五个结构                                                                                        | 映射成 `chars`：在 `masteredChars` 里的落 `step: 7` / `due: ''`；在 `charReviewSchedule` 里的落 `step: 0` / `due` 取那六个日期里最早的；只在 `reviewChars` / `learnedChars` 里的落 `step: 0` / `due` 为 `''`；`charWrongCounts` 原样进 `wrong`                                                                   |
-| IMPORT-12 | 含 `exchangeRecords` 的一条 `approved` 记录                                                                                        | 成为 `redemptions` 的一条，`status` 为 `'done'`；`pending` 仍是 `'pending'`；`rejected` 的整条**丢掉**（本仓库没有「已取消」这个状态）                                                                                                                                                                           |
-| IMPORT-13 | 含 `lastWeeklyBonusWeek: '2026-08-10'`                                                                                             | 原样落进同名顶层键；线上无此键时落空串                                                                                                                                                                                                                                                                           |
-| IMPORT-14 | 线上 `learningProgress.guoxue` 的三个结构                                                                                          | 映射成 `poems`：在 `masteredPoems` 里的落 `step: 5` / `due: ''` / `mastered: true`；在 `reviewSchedule` 里的落 `step: 0` / `due` 取那六个日期里最早的；只在 `learnedPoems` 里的落 `step: 0` / `due` 为 `''`。`weekly` **不从线上来**（线上不落盘），落空水位                                                     |
-| IMPORT-15 | 线上 `learningProgress.math` 的四个字段                                                                                            | `currentStage` → `stage`（夹到 `1` ~ `6`）；`gamesCompleted` / `stagePlayed` / `stageCorrect` **三个都不接**（数的是次数，本仓库数的是哪些题），`rounds` 落空对象 —— 线上没有「答对过哪些题」这笔数据                                                                                                            |
-| IMPORT-16 | 线上 `parentSettings` 的三个字段                                                                                                   | `pin` / `dailyGoal` / `note` 原样映射（`dailyGoal: 99` 夹到 `12`）；`pinFails` / `pinLockedUntil` **两个都落 `0`** —— 线上没有节流，与 `pet.lastFedAt` 同一条                                                                                                                                                    |
-| IMPORT-17 | 线上 `tasks` 的一条 `learning` 元素（`starsReward: 2` / `foodPointsReward: 2` / `subCategory: 'chinese'`，无 `core`、无 `module`） | `starsReward` → `starReward`、`foodPointsReward` → `petFoodReward`；`subCategory` **不接**；`core` 落 `false`（线上没有这个概念，**不按 id 猜**）；`id` / `name` / `icon` / `category` / `frequency` / `needsParentConfirm` / `enabled` / `sortOrder` 原样映射；`weeklyTarget` 只在 `frequency: 'weekly'` 时保留 |
-| IMPORT-18 | 任意线上 JSON（含完整 `rewardRules`）                                                                                              | `rewardFlags` 为 `{}`（**整份不接**）—— 线上三条卡默认全 `enabled: true`，映射过来恒等于「缺键 = 启用」；`medalCost` 不进存档（`REWARDS` 是常量，改价不做）                                                                                                                                                      |
+| Spec ID   | 输入                                                                                                                                                                                                                                                                                                                         | 期望输出                                                                                                                                                                                                                                                                                                                             |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| IMPORT-01 | 含 `currency.stars/gems/foodPoints/medals`                                                                                                                                                                                                                                                                                   | 映射到 `star/gem/petFood/medal`，数值不变                                                                                                                                                                                                                                                                                            |
+| IMPORT-02 | 含 `pet.satiety/happiness/level/exp`                                                                                                                                                                                                                                                                                         | 映射到 `fullness/mood/petLevel/petExp`                                                                                                                                                                                                                                                                                               |
+| IMPORT-03 | 含 `profile.name`                                                                                                                                                                                                                                                                                                            | 映射到顶层 `childName`                                                                                                                                                                                                                                                                                                               |
+| IMPORT-04 | 含 `dailyRecords` 的两个日期键                                                                                                                                                                                                                                                                                               | **日期键原样**成为 `days` 的两个键（值逐键映射，见 `IMPORT-19`）；元素里的 `date` 字段**不接**（与它自己的键重复）                                                                                                                                                                                                                   |
+| IMPORT-05 | 含 `unlockedMedals: ['early-bird']`                                                                                                                                                                                                                                                                                          | 成为 `achievements: ['early-bird']`                                                                                                                                                                                                                                                                                                  |
+| IMPORT-06 | 含 `pet.unlockedDecor`                                                                                                                                                                                                                                                                                                       | 丢弃该字段                                                                                                                                                                                                                                                                                                                           |
+| IMPORT-07 | 空对象 `{}`                                                                                                                                                                                                                                                                                                                  | 等于 `defaultSave()`，不抛错                                                                                                                                                                                                                                                                                                         |
+| IMPORT-08 | 非对象输入                                                                                                                                                                                                                                                                                                                   | 抛 `TypeError`（导入是用户主动动作，要报错）                                                                                                                                                                                                                                                                                         |
+| IMPORT-09 | `createdAt` 为 ISO 字符串                                                                                                                                                                                                                                                                                                    | 转成毫秒数；无法解析时取默认值 `0`                                                                                                                                                                                                                                                                                                   |
+| IMPORT-10 | 任意线上 JSON                                                                                                                                                                                                                                                                                                                | `pet.lastFedAt` 为 `0`（线上无此字段）                                                                                                                                                                                                                                                                                               |
+| IMPORT-11 | 线上 `learningProgress.literacy` 的五个结构                                                                                                                                                                                                                                                                                  | 映射成 `chars`：在 `masteredChars` 里的落 `step: 7` / `due: ''`；在 `charReviewSchedule` 里的落 `step: 0` / `due` 取那六个日期里最早的；只在 `reviewChars` / `learnedChars` 里的落 `step: 0` / `due` 为 `''`；`charWrongCounts` 原样进 `wrong`                                                                                       |
+| IMPORT-12 | 含 `exchangeRecords` 的一条 `approved` 记录                                                                                                                                                                                                                                                                                  | 成为 `redemptions` 的一条，`status` 为 `'done'`；`pending` 仍是 `'pending'`；**`rejected` 落 `'cancelled'`**（P7 第三段有了这个状态，在此之前整条丢掉）                                                                                                                                                                              |
+| IMPORT-13 | 含 `lastWeeklyBonusWeek: '2026-08-10'`                                                                                                                                                                                                                                                                                       | 原样落进同名顶层键；线上无此键时落空串                                                                                                                                                                                                                                                                                               |
+| IMPORT-14 | 线上 `learningProgress.guoxue` 的三个结构                                                                                                                                                                                                                                                                                    | 映射成 `poems`：在 `masteredPoems` 里的落 `step: 5` / `due: ''` / `mastered: true`；在 `reviewSchedule` 里的落 `step: 0` / `due` 取那六个日期里最早的；只在 `learnedPoems` 里的落 `step: 0` / `due` 为 `''`。`weekly` **不从线上来**（线上不落盘），落空水位                                                                         |
+| IMPORT-15 | 线上 `learningProgress.math` 的四个字段                                                                                                                                                                                                                                                                                      | `currentStage` → `stage`（夹到 `1` ~ `6`）；`gamesCompleted` / `stagePlayed` / `stageCorrect` **三个都不接**（数的是次数，本仓库数的是哪些题），`rounds` 落空对象 —— 线上没有「答对过哪些题」这笔数据                                                                                                                                |
+| IMPORT-16 | 线上 `parentSettings` 的三个字段                                                                                                                                                                                                                                                                                             | `pin` / `dailyGoal` / `note` 原样映射（`dailyGoal: 99` 夹到 `12`）；`pinFails` / `pinLockedUntil` **两个都落 `0`** —— 线上没有节流，与 `pet.lastFedAt` 同一条                                                                                                                                                                        |
+| IMPORT-17 | 线上 `tasks` 的一条 `learning` 元素（`starsReward: 2` / `foodPointsReward: 2` / `subCategory: 'chinese'`，无 `core`、无 `module`）                                                                                                                                                                                           | `starsReward` → `starReward`、`foodPointsReward` → `petFoodReward`；`subCategory` **不接**；`core` 落 `false`（线上没有这个概念，**不按 id 猜**）；`id` / `name` / `icon` / `category` / `frequency` / `needsParentConfirm` / `enabled` / `sortOrder` 原样映射；`weeklyTarget` 只在 `frequency: 'weekly'` 时保留                     |
+| IMPORT-18 | 任意线上 JSON（含完整 `rewardRules`）                                                                                                                                                                                                                                                                                        | `rewardFlags` 为 `{}`（**整份不接**）—— 线上三条卡默认全 `enabled: true`，映射过来恒等于「缺键 = 启用」；`medalCost` 不进存档（`REWARDS` 是常量，改价不做）                                                                                                                                                                          |
+| IMPORT-19 | `dailyRecords` 的一天含 `completedTasks: { wake: { completed: true, completedAt: '2026-08-10T07:30:00.000Z' }, poop: { completed: false } }`、`bonuses: { dailyAllDone: true }`、`date`                                                                                                                                      | `checks.wake` 为 `{ at: 1786347000000 }`（ISO 转毫秒）；**`checks.poop` 这个键不存在**（墓碑不算打过卡，`HABIT` 区的不变式是「键存在即已打卡」）；`bonuses.allDone` 为 `true`（改名）；`date` 被丢弃                                                                                                                                 |
+| IMPORT-20 | 一天含 `health` 的十一个字段与 `ledger: [{ id: 'x', at: '2026-08-10T07:30:00.000Z', type: 'earn', stars: 1, foodPoints: 1, reason: '按时起床' }]`                                                                                                                                                                            | `health` **十一个字段名原样**（恒等映射）；流水成为 `{ at: 1786347000000, type: 'earn', reason: '按时起床', star: 1, gem: 0, petFood: 1, medal: 0 }` —— 四个货币缺的补 `0`（否则求和出 `NaN`），**元素的 `id` 丢掉**                                                                                                                 |
+| IMPORT-21 | 一天含 `learning: { reading: { minutes: 20, bookTitle: '猜猜我有多爱你', completed: true, coverDataUrl: 'data:image/png;base64,…' }, literacy: { newChars: ['天'], reviewedChars: ['地'], mastered: ['天'] }, guoxue: { poemId: 'p1', learned: true, recited: true }, math: { gamesPlayed: 3, gamesCorrect: 2, stage: 2 } }` | `reading` 丢 `completed`（完成状态只有 `checks` 一个真相）与 `coverDataUrl`（base64 图片，撑爆 storage 且无显示位置）；`literacy` 的 `reviewedChars` → `reviewed`、丢 `mastered`（从 `step >= 7` 现算）；`guoxue` 成为 `{ poems: ['p1'] }`；`math` 成为 `{ rounds: [], correct: 2 }` —— 次数换不出题目 id，与 `IMPORT-15` 同一处损失 |
+| IMPORT-22 | 线上 `stickerCollection: { 'st-000-小狗狗': 3.7, 'st-001-小猫咪': 0, zzz: 2 }` 与 `lastFreeStickerDate: '2026-08-17'`；以及两个键都缺席的一份 JSON                                                                                                                                                                           | 两个键**同名落进存档**，但**经过收敛**：`'st-000-小狗狗'` 为 `3`、**`'st-001-小猫咪'` 这个键不存在**（`0` 不是拥有 0 张）、`zzz` 原样留着；`lastFreeStickerDate` 为 `'2026-08-17'`。两个键缺席时落 `{}` 与 `''` —— **不断言「原样等于原样」**（见 `IMPORT-04` 那条教训）                                                             |
 
 导入与读存档的错误策略相反：**导入非法数据要报错**。用户是主动粘贴 JSON 的，
 静默用默认值会让他以为导入成功了，实际清零 —— 那正是迁移要避免的事故。
@@ -556,10 +645,12 @@ rewardFlags: { snack: true, cartoon: true, money: false },
 导入不会让 nono 的小伙伴一进来就是饿的（见 `docs/features/pet/doc.md` 的 `FULLNESS-01`）。
 
 线上多出来的 8 个顶层键（`pointRules` `rewardRules` `medalProgress` `stickerCollection`
-`lastFreeStickerDate` `lastWeeklyBonusWeek` 及其内部字段）本层**不接**：
+`lastFreeStickerDate` `lastWeeklyBonusWeek` 及其内部字段）本层**在 P1 时不接**：
 它们属于后续 feature（`POINT` / `REWARD` / `ACHV` / `STICKER`），
 等那些 feature 定义了自己的结构再扩存档与映射表。这条是刻意的取舍，不是遗漏 ——
 先把线上 JSON 原文留在用户手上，导入可以重跑。
+**这张名单从 9 个一路减到 3 个，减的每一步都记在下面**，
+因为它是「还有多少数据没搬过来」这个问题唯一的答案所在。
 
 `learningProgress` 原本也在这份「不接」名单里，P5 识字把它接进来了一半：
 只映射 `learningProgress.literacy`（`IMPORT-11`），线上同层的 `poems` / `math` /
@@ -580,9 +671,10 @@ rewardFlags: { snack: true, cartoon: true, money: false },
 
 P3-b 又从名单里接走了 `lastWeeklyBonusWeek`（`IMPORT-13`），并给早就存在的
 `exchangeRecords` → `redemptions` 加上了元素映射（`IMPORT-12`）。
-剩下**四个仍不接**：`pointRules`、`rewardRules`、`medalProgress`、
-`stickerCollection` 与 `lastFreeStickerDate`（贴纸单独一轮）。
-**P7 第二段把前三个里的两个判成永久不接**：
+名单于是剩五个，**`STICKER` 一轮接走了其中两个**（`stickerCollection` /
+`lastFreeStickerDate`，`IMPORT-22`）——
+剩下**三个永久不接**：`pointRules`、`rewardRules`、`medalProgress`。
+前两个是 **P7 第二段**判的，第三个是 P3-b 判的：
 
 - `pointRules` **永久不接** —— 线上是一张全局费率表（`taskComplete: { stars: 1 }`），
   而本仓库的产出值长在任务身上（`habits[].starReward`），第二段给的正是**逐条改**
@@ -600,6 +692,13 @@ P3-b 又从名单里接走了 `lastWeeklyBonusWeek`（`IMPORT-13`），并给早
 第三种最容易误判成「该接」—— 线上确实有数据、字段名也对得上，
 但搬过来一条信息都不增加。
 
+**贴纸那两个键是第四种：真的有数据、真的有人读、真的该接，只是要等它的那一轮。**
+它们从 P1 起挂着「贴纸单独一轮」，挂了七个阶段 —— 而挂账与「永久不接」在名单上
+长得一模一样，都是「不接」两个字。`STICKER` 一轮接完之后，
+**这张名单上再没有「以后再说」的条目**：三个永久不接各有已经写下来的理由，
+剩下的一个也没有。这是「数据搬迁」这件事在本仓库的完成态
+（`docs/vision.md`「数据迁移」一节）。
+
 `IMPORT-16` 是 P7 第一段补的，也是**全仓第一次真的有人调 `importOnlineSave`**：
 在此之前 15 条导入规格全绿而**零调用点**，nono 线上的进度搬不过来。
 `parentSettings` 三个字段从 P1 起就在映射表里，本轮只是把 `dailyGoal` 的夹子
@@ -614,6 +713,42 @@ P3-b 又从名单里接走了 `lastWeeklyBonusWeek`（`IMPORT-13`），并给早
 只断言长度与 id 的规格，挡不住「元素里每个字段都是错的」。
 **元素映射的规格必须至少断言一个改了名的字段和一个本仓库独有的字段。**
 
+`IMPORT-19` ~ `21` 是 P7 第三段补的，**同一个洞的第二次**：`days: onlineJson.dailyRecords`
+从 P1 起就在，而 `IMPORT-04` 写的是「原样成为 `days` 的两个键」——
+那条规格只看键、不看值，所以它全绿。第三段的看板第一次要读 `days` 的内部，
+才发现导入来的那份存档里 `checks` / `bonuses.allDone` / `learning.literacy.reviewed`
+**一个键都不存在**（线上叫 `completedTasks` / `bonuses.dailyAllDone` / `reviewedChars`）。
+`habits` 那次是「合法但不生效」，这次是「合法但一条都读不出来」。
+**规律：整份透传的顶层键，它的规格只会断言到透传的那一层 ——
+所以「有多少个顶层键还是整份透传的」这个数，等于「还有多少个这样的洞」。**
+本轮之后这个数是 `0`。
+
+**四条成就的进度会被这三条规格改变。** `utils/reward.js` 的 `JUDGES` 里恰好四条读
+`days` 的内部：`reading_days`（`day.learning?.reading !== undefined`）、
+`veggie_week`（`'vegetables' in checks`）、`room_tidy`（`'room' in (day.checks ?? {})`）、
+`daily_all_done`（`day.bonuses?.allDone === true`）。所以这次映射不只是「形状对齐」，
+它让导入来的历史**第一次能被数出来** —— 在此之前那四条对导入的存档一律返回 `0`。
+`IMPORT-19` 因此同时是一条成就规格的前置条件，`reward/doc.md` 那边不重复声明。
+
+`IMPORT-20` 的两半是刻意放在一条里的：`health` 是全表**唯一一个恒等映射**
+（十一个字段名两边一字不差，逐个核对过线上健康页），而 `ledger` 是**改动最密的一个**
+（四个货币改名 + 补 `0` + ISO 转毫秒 + 丢 id）。一条规格同时断言
+「什么都不该变的」与「什么都变了的」，比两条各自断言更难蒙 ——
+一个「整份透传 `learning` 和 `health`、只映射 `checks`」的实现能过 `IMPORT-19`，
+但过不了 `IMPORT-21`。
+
+**四个货币补 `0` 不是防御性代码。** 线上 `br`（`.scratch/index-VUOSJfWA.js:243866`）
+写四个键，但调用方多数只传前两个 —— 大部分流水行的 `gems` / `medals` 是 `undefined`。
+不补 `0`，`dayEarned` 的求和会得 `NaN`，而 `NaN` 在界面上显示成「NaN⭐」且不抛错。
+
+`IMPORT-22` 是**本轮唯一一条「恒等映射」的规格，而它刻意不长成 `IMPORT-04` 的样子**。
+`IMPORT-04` 写的是 `expect(result.days[键]).toEqual(原值)` —— 一条恒真的规格，
+它只能证明搬运没出错。`IMPORT-22` 的两个键字段名两边一字不差，
+按 `IMPORT-04` 的写法本该也是「原样等于原样」，但**收敛在 `normalizeSave` 里发生**，
+所以它断言的是收敛后的结果（`0` 值那条不见了）。
+**规律：恒等映射的规格要断言的不是「名字对上了」，而是「这份数据进来之后长什么样」——
+前者永远绿，后者能挡住「忘了把这个键放进 `mapped`」和「放进去了但绕过了收敛」两种错。**
+
 ## 范围外
 
 - 不做双向同步。导入是一次性动作，导入后线上数据不再是来源。
@@ -623,14 +758,22 @@ P3-b 又从名单里接走了 `lastWeeklyBonusWeek`（`IMPORT-13`），并给早
   家庭自用场景下，加密带来的复杂度换不到实际安全收益。这一点在 `PARENT` 区的
   `doc.md` 里要再说明一次。
 - 不写具体业务规则的公式（打卡产出、升级、复习调度）。
-- 不做 `days` 内部结构的完整规格 —— 那些字段由各自的 feature 定义，
+- 不做 `days` 内部结构的完整**收敛**规格 —— 那些字段由各自的 feature 定义，
   本层只保证「原样存、原样取」。`days[dayKey].checks`（打卡状态）由 `HABIT` 区定义，
   见 `docs/features/habit/doc.md`；`days[dayKey]` 的其它兄弟键（`ledger` 等）
   由后续 feature 各自增补，本层对整个 `days` 是透传，不会因为多出键而丢数据。
   **`habits` 原本与 `days` 并列在这一条里，P7 第二段把它移出去了**（`SAVE-20` ~ `SAVE-22`）——
   移出的时点是它有了写入路径，不是它的结构变清楚了（结构从 P2 起就没变过）。
+  **P7 第三段给 `days` 加了完整的线上映射（`IMPORT-19` ~ `21`）却没有把它移出这一条** ——
+  「映射」与「收敛」是两件事：前者要知道两边的字段名（`importOnline.js` 知道），
+  后者要知道每个字段的合法域（那仍然分散在各 feature 里）。
+  **一个键可以有映射而不收敛。**
 - 不做 `habits` 元素的**语义**规格：哪七条是 `core`、哪些字段家长能改、`sortOrder`
   怎么重排、新增任务的 id 怎么生成，分别在 `docs/features/habit/doc.md` 与
   `docs/features/parent/doc.md`。本层只管形状与默认值。
 - 不做 `rewardFlags` 的未知 id 清理 —— 本层不能 import `data/rewards.js`，
   认不出登记过的 id。清理不做（删了就丢数据），忽略由 `utils/reward.js` 的读取路径完成。
+  **`stickerCollection` 的未知 id 同一条**（`SAVE-25`）：本层不能 import
+  `data/stickers.js`，忽略由 `utils/sticker.js` 的读取路径完成（`STICKER-06`）。
+- 不做贴纸的抽取逻辑、权重与图鉴 —— 本层只管两个键的形状。
+  随机源怎么来、只从未拥有的里抽、勋章怎么扣，都在 `docs/features/sticker/doc.md`。

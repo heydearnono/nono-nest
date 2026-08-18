@@ -1,0 +1,72 @@
+<!-- 贴纸乐园：页头进度 + 两个抽取按钮 + 七个类别 chip + 五列图鉴 + 揭示层。
+     拥有没有（owned）、几张（count）、中文标签（categoryLabel / rarityLabel）、
+     免费抽用过没有（free.used）、勋章够不够（medal.ready）都由 utils/sticker.js
+     的 stickerState 算好，这里只渲染结论 -->
+<view class="sticker" wx:if="{{state}}">
+  <view class="head">
+    <view class="head__count">已收集 {{state.owned}}/{{state.total}}</view>
+    <view class="head__bar">
+      <view class="head__fill" style="width: {{state.percent}}%"></view>
+    </view>
+    <view class="head__percent">图鉴 {{state.percent}}%</view>
+  </view>
+
+  <!-- 两个按钮都不 disabled：点了照 reason 给「为什么不能」。线上把它们禁用掉，
+       于是「今天已经免费抽过啦」「勋章不够哦」两句提示成了死代码 -->
+  <view class="draws">
+    <view
+      class="draw {{state.free.used ? 'draw--off' : ''}}"
+      data-source="free"
+      bindtap="onTapDraw"
+      hover-class="draw--hover"
+    >
+      <view class="draw__icon">🎁</view>
+      <view class="draw__name">今日免费抽</view>
+      <view class="draw__note">{{state.free.used ? '明天再来' : '每天一次'}}</view>
+    </view>
+    <view
+      class="draw {{state.medal.ready ? '' : 'draw--off'}}"
+      data-source="medal"
+      bindtap="onTapDraw"
+      hover-class="draw--hover"
+    >
+      <view class="draw__icon">🏅</view>
+      <view class="draw__name">1 勋章抽</view>
+      <view class="draw__note">还有 {{state.medal.balance}} 枚</view>
+    </view>
+  </view>
+
+  <view class="chips">
+    <view
+      class="chip {{category === item.key ? 'chip--on' : ''}}"
+      wx:for="{{state.categories}}"
+      wx:key="key"
+      data-key="{{item.key}}"
+      bindtap="onTapCategory"
+    >
+      {{item.label}} {{item.owned}}/{{item.total}}
+    </view>
+  </view>
+
+  <!-- 未拥有的显示 ❓ 而不是灰掉的 emoji：抽到才知道是什么，悬念是收集的乐趣 -->
+  <view class="grid">
+    <view class="cell {{item.owned ? 'cell--on' : ''}}" wx:for="{{shown}}" wx:key="id">
+      <text class="cell__face">{{item.owned ? item.emoji : '❓'}}</text>
+      <text class="cell__rare" wx:if="{{item.owned && item.rarity === 'rare'}}">✨</text>
+      <text class="cell__count" wx:if="{{item.count > 1}}">×{{item.count}}</text>
+    </view>
+  </view>
+
+  <!-- 揭示层：只有一个 WXSS 缩放，不做掉落粒子。点哪儿都能关 -->
+  <view class="reveal" wx:if="{{reveal}}" bindtap="onCloseReveal">
+    <view class="reveal__card">
+      <view class="reveal__title">{{reveal.isNew ? '🎉 新贴纸到手！' : '💫 又是它！'}}</view>
+      <view class="reveal__emoji">{{reveal.sticker.emoji}}</view>
+      <view class="reveal__name">{{reveal.sticker.name}}</view>
+      <view class="reveal__tag">
+        {{reveal.sticker.categoryLabel}} · {{reveal.sticker.rarityLabel}}
+      </view>
+      <view class="reveal__hint">点一下继续</view>
+    </view>
+  </view>
+</view>

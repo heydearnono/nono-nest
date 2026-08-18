@@ -418,4 +418,66 @@ describe('habits 的元素收敛与兑换卡开关（P7 第二段）', () => {
     expect(normalizeSave({ rewardFlags: null }).rewardFlags).toEqual({});
     expect(normalizeSave({ rewardFlags: 'snack' }).rewardFlags).toEqual({});
   });
+
+  it("[SAVE-24] redemptions 的 status 认第三个取值 'cancelled'，坏值仍落 'pending'", () => {
+    const statusOf = (status) => normalizeSave({ redemptions: [{ status }] }).redemptions[0].status;
+
+    // P7 第三段加的第三个取值：家长驳回后落它
+    expect(statusOf('cancelled')).toBe('cancelled');
+    expect(statusOf('pending')).toBe('pending');
+    expect(statusOf('done')).toBe('done');
+
+    // 坏值一律落 'pending'。**不落 'cancelled'** —— 那个状态的语义是「退过款了」，
+    // 把一条认不出状态的记录说成退过款，等于凭空承认一笔没发生的退款
+    for (const bad of ['rejected', 'approved', 'weird', '', 'CANCELLED', 42, null, undefined]) {
+      expect(statusOf(bad)).toBe('pending');
+    }
+  });
+
+  it('[SAVE-25] stickerCollection 键存在即拥有：0 与负数整条丢掉，未知 id 留着', () => {
+    expect(defaultSave().stickerCollection).toEqual({});
+    expect(normalizeSave({}).stickerCollection).toEqual({});
+
+    const collection = normalizeSave({
+      stickerCollection: {
+        'st-000-小狗狗': 3.7,
+        'st-001-小猫咪': 0,
+        'st-002-小兔子': -2,
+        'st-003-小熊熊': 'x',
+        zzz: 2,
+      },
+    }).stickerCollection;
+
+    // 值取整
+    expect(collection['st-000-小狗狗']).toBe(3);
+
+    // 0 / 负数 / 非数那三个键**整条不存在**：键存在即拥有，值只用来数几次。
+    // 线上页面判 `> 0` 说明收藏册里会有 0；丢掉之后读取侧只需判「键在不在」
+    expect('st-001-小猫咪' in collection).toBe(false);
+    expect('st-002-小兔子' in collection).toBe(false);
+    expect('st-003-小熊熊' in collection).toBe(false);
+
+    // 未知 id 原样留着：本层零 import，认不出哪个 id 在 data/stickers.js 里登记过。
+    // 忽略它是 utils/sticker.js 的读取路径的事（STICKER-06）—— 与 SAVE-23 逐字同一条
+    expect(collection.zzz).toBe(2);
+
+    expect(normalizeSave({ stickerCollection: ['st-000-小狗狗'] }).stickerCollection).toEqual({});
+    expect(normalizeSave({ stickerCollection: null }).stickerCollection).toEqual({});
+    expect(normalizeSave({ stickerCollection: 'st-000-小狗狗' }).stickerCollection).toEqual({});
+  });
+
+  it('[SAVE-26] lastFreeStickerDate 只认日期键形状，其余落空串', () => {
+    expect(defaultSave().lastFreeStickerDate).toBe('');
+    expect(normalizeSave({}).lastFreeStickerDate).toBe('');
+
+    expect(normalizeSave({ lastFreeStickerDate: '2026-08-17' }).lastFreeStickerDate).toBe(
+      '2026-08-17',
+    );
+
+    // 落空串的后果是「今天可能再免费抽一次」，落一个乱码的后果是
+    // 「'乱码' !== 今天 恒成立 —— 每天都能抽，而且永远抽不完」
+    for (const bad of ['乱码', '2026-8-17', '2026-08-17T00:00:00', 20260817, null, undefined]) {
+      expect(normalizeSave({ lastFreeStickerDate: bad }).lastFreeStickerDate).toBe('');
+    }
+  });
 });

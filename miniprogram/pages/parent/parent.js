@@ -25,9 +25,11 @@ import {
   addHabit,
   moveHabit,
   parentTasks,
+  resolveRedemption,
   saveHabit,
   toggleReward,
 } from '../../utils/parentTasks.js';
+import { dayKey } from '../../utils/dayKey.js';
 import { defaultSave } from '../../utils/save.js';
 
 /** 冷却倒计时的刷新间隔。只在 `locked` 为真时开，解锁即清 */
@@ -379,6 +381,50 @@ Page({
    */
   onToggleReward(event) {
     this.commit(toggleReward(this.save, event.currentTarget.dataset.id));
+  },
+
+  /**
+   * 「✅ 已给她了」：纯状态迁移，**货币一分不动** —— 申请那一刻 `redeem` 已经扣过了
+   * （本仓库申请即扣）。所以这个按钮回答的是「东西给了没有」，不是「钱付了没有」，
+   * 因此不弹二次确认。
+   *
+   * 记录的身份是 `at` 不是数组下标：列表渲染之后孩子还可能再申请一条。
+   *
+   * @param {object} event 小程序事件对象
+   */
+  onTapResolveDone(event) {
+    const at = Number(event.currentTarget.dataset.at);
+    const now = Date.now();
+    this.commit(resolveRedemption(this.save, dayKey(now), at, 'done', now), '记好啦');
+  },
+
+  /**
+   * 「↩️ 退回勋章」：退 `medalCost` 并在**今天**的流水上加一行。
+   * 它动货币，所以二次确认（前者不动，所以不确认 —— 两个按钮的差别就在这里）。
+   *
+   * `key` 是 `dayKey(now)`：退款发生在今天，而流水回答的是「那天发生了什么」。
+   *
+   * @param {object} event 小程序事件对象
+   */
+  onTapResolveCancel(event) {
+    const at = Number(event.currentTarget.dataset.at);
+    const { name, cost } = event.currentTarget.dataset;
+
+    wx.showModal({
+      title: '退回勋章',
+      content: `「${name}」的 ${cost} 枚勋章会退给她，这条申请标成已取消。`,
+      confirmText: '退回',
+      success: (res) => {
+        if (!res.confirm) return;
+        const now = Date.now();
+        this.commit(resolveRedemption(this.save, dayKey(now), at, 'cancelled', now), '退回啦');
+      },
+    });
+  },
+
+  /** 去看板。只读的那一页在别处（`pages/board/board`），进去要再验一次 PIN */
+  onTapBoard() {
+    wx.navigateTo({ url: '/pages/board/board' });
   },
 
   /** 导出：整份存档进剪贴板。只读操作，不需要确认 */

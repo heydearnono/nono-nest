@@ -16,6 +16,12 @@
  * `rewardFlags` 是 P7 第二段新增的顶层键，**缺键 = 启用**：一张没被明确停用的卡
  * 应该能换。所以读取侧一律判 `!== false` / `=== false`，**绝不判真值**
  * （utils/reward.js，REWARD-16 / REWARD-17）。
+ *
+ * `stickerCollection` 与 `lastFreeStickerDate` 是 `STICKER` 一轮新增的两个顶层键，
+ * 也是**线上 19 个顶层键里最后两个被接进来的**。前者**键存在即拥有**：
+ * 值只用来数「几次」，所以 `0` 是脏数据而不是「拥有 0 张」，收敛时整条丢掉 ——
+ * 读取侧于是一律判「键在不在」，不需要第二个判据（SAVE-25）。
+ * 后者是第四个 `dayKey` 水位，收敛逐字照 `lastWeeklyBonusWeek`（SAVE-26）。
  */
 
 /** 饱腹度与开心度的取值范围（线上原样，0-5 离散档位） */
@@ -61,10 +67,14 @@ const DAILY_GOAL_MAX = 12;
 const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * 兑换记录的两个状态。坏值落 `'pending'` 而不是 `'done'`：
+ * 兑换记录的三个状态。坏值落 `'pending'` 而不是 `'done'`：
  * 坏数据宁愿留在待兑现列表里让家长看见，也不要悄悄变成「已经给过了」（SAVE-15）。
+ *
+ * `'cancelled'` 是 P7 第三段加的第三个取值（SAVE-24，家长驳回后落它）。
+ * **坏值也不落 `'cancelled'`** —— 那个状态的语义是「退过款了」，
+ * 把一条认不出状态的记录说成退过款，等于凭空承认一笔没发生的退款。
  */
-const REDEMPTION_STATUS = ['pending', 'done'];
+const REDEMPTION_STATUS = ['pending', 'done', 'cancelled'];
 
 /**
  * 自律任务的三个类别。坏值落 `'habit'`（第一个）：`habit` 类不需要 `module`，
@@ -366,6 +376,33 @@ function rewardFlags(value) {
 }
 
 /**
+ * 收敛贴纸收藏册：`stickerId` → 抽到过几次。
+ *
+ * **键存在即拥有**，值只用来数「几次」—— 所以 `0` 不是「拥有 0 张」而是脏数据，
+ * 整条丢掉（与 days[].checks 的墓碑同一条：`completed !== true` 不写键）。
+ * 线上页面用 `Object.keys(e).filter(t => e[t] > 0)` 数收藏数
+ * （.scratch/index-VUOSJfWA.js:677950），说明线上自己也承认收藏册里会有 `0`；
+ * 本层把 `0` 丢掉之后，读取侧一律判「键在不在」，不需要第二个判据（`SAVE-25`）。
+ *
+ * **未知 id 原样留着**：本层零 import，认不出哪个 id 在 data/stickers.js 里登记过。
+ * 与 rewardFlags 逐字同一条 —— 删了就丢数据，留着只是没人读；
+ * 忽略未知 id 的是 utils/sticker.js 的读取路径（`STICKER-06`）。
+ *
+ * @param {unknown} value 原始的 `stickerCollection` 值
+ * @returns {Record<string, number>} 贴纸 id → 抽到过几次（每个值都 >= 1）
+ */
+function stickerCollection(value) {
+  if (!isPlainObject(value)) return {};
+
+  const owned = {};
+  for (const [id, count] of Object.entries(value)) {
+    const times = Math.trunc(Number(count));
+    if (Number.isFinite(times) && times >= 1) owned[id] = times;
+  }
+  return owned;
+}
+
+/**
  * 收敛成就 id：只留字符串并去重。
  *
  * 它是 `includes` 判断「解锁过没有」的依据，重复项会让奖励中心的已解锁计数虚高（SAVE-16）。
@@ -406,6 +443,12 @@ export function defaultSave() {
     // 兑换卡的启用开关（rewardId -> 布尔）。**空对象 = 三条全启用**：
     // 缺键当启用，所以这里不预先写三个 true —— 写了就得跟着 data/rewards.js 改（SAVE-23）
     rewardFlags: {},
+    // 贴纸收藏册（stickerId -> 抽到过几次）。**键存在即拥有**，值只数次数 ——
+    // 所以空对象就是「一张都没抽到」，不需要预写 140 个 0（SAVE-25）
+    stickerCollection: {},
+    // 上次用掉免费抽的 dayKey。空串 = 从未免费抽过：`'' !== 今天` 天然成立，
+    // 第一次不需要特判（与 lastWeeklyBonusWeek 同一条，SAVE-26）
+    lastFreeStickerDate: '',
     // 上次发过周奖励的周键（weekKeys(now)[0]，即本周周一的 dayKey）。
     // 空串 = 从未发过：`'' !== 本周周键` 天然成立，第一周不需要特判（SAVE-14）
     lastWeeklyBonusWeek: '',
@@ -467,6 +510,14 @@ export function normalizeSave(raw) {
     redemptions: redemptions(raw.redemptions),
     achievements: achievements(raw.achievements),
     rewardFlags: rewardFlags(raw.rewardFlags),
+    stickerCollection: stickerCollection(raw.stickerCollection),
+    // 只认日期键形状，其余落空串 —— 逐字照 lastWeeklyBonusWeek。落空串的后果是
+    // 「今天可能再免费抽一次」，落一个乱码的后果是「'乱码' !== 今天 恒成立，
+    // 每天都能抽而且永远抽不完」。两个方向的错都指向多给一次，所以这里更安全（SAVE-26）
+    lastFreeStickerDate:
+      typeof raw.lastFreeStickerDate === 'string' && DAY_KEY_RE.test(raw.lastFreeStickerDate)
+        ? raw.lastFreeStickerDate
+        : '',
     // 只认日期键形状，其余落空串。落空串的后果是「这周可能再发一次周奖励」，
     // 而落一个乱码的后果是「永远发不出去」—— 宁愿多发一次也不要让奖励卡死（SAVE-14）
     lastWeeklyBonusWeek:

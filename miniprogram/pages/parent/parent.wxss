@@ -369,3 +369,60 @@
   font-size: 26rpx;
   color: var(--color-primary);
 }
+
+/* 待兑现：空的时候显示这一句，不让整块卡片消失（PARENT-77） */
+.pend__none {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  opacity: 0.6;
+}
+
+.pend {
+  margin-top: 16rpx;
+  padding: 16rpx;
+  border-radius: 16rpx;
+  background-color: #fff8e8;
+}
+
+.pend__head {
+  display: flex;
+  align-items: center;
+}
+
+.pend__icon {
+  width: 48rpx;
+  font-size: 32rpx;
+}
+
+.pend__name {
+  flex: 1;
+  font-size: 28rpx;
+}
+
+.pend__cost {
+  font-size: 26rpx;
+  color: var(--color-primary);
+}
+
+.pend__btns {
+  display: flex;
+  margin-top: 12rpx;
+  gap: 16rpx;
+}
+
+.pend__btn {
+  flex: 1;
+  padding: 14rpx 0;
+  border-radius: 999rpx;
+  border: 2rpx solid var(--color-primary);
+  background-color: #fff;
+  color: var(--color-primary);
+  font-size: 26rpx;
+  text-align: center;
+}
+
+/* 退回动货币，所以颜色比「已给她了」重一级（与 .act--warn 同一个色） */
+.pend__btn--warn {
+  border-color: #c25b7c;
+  color: #c25b7c;
+}

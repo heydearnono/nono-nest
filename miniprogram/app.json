@@ -10,7 +10,9 @@
     "pages/poem/poem",
     "pages/math/math",
     "pages/reward/reward",
-    "pages/parent/parent"
+    "pages/sticker/sticker",
+    "pages/parent/parent",
+    "pages/board/board"
   ],
   "window": {
     "navigationBarTitleText": "糯糯工作台",

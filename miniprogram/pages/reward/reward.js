@@ -97,4 +97,9 @@ Page({
     // 「待家长兑现」是记录里的状态，提示语也说同一件事：孩子知道下一步要找爸爸妈妈
     wx.showToast({ title: '换好啦，去找爸爸妈妈 🎁', icon: 'none', duration: 1500 });
   },
+
+  /** 进贴纸乐园。navigateTo 而非 switchTab：它不是 tab 页（app.json 仍是四格） */
+  onTapSticker() {
+    wx.navigateTo({ url: '/pages/sticker/sticker' });
+  },
 });

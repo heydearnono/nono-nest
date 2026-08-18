@@ -83,6 +83,33 @@
   color: var(--color-primary);
 }
 
+/* 贴纸乐园入口：一整行，不混进上面那排三列兑换卡 ——
+   它跳页，不花勋章，形状不一样才不会被当成第四张卡 */
+.entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 32rpx;
+  border-radius: 28rpx;
+  margin-top: 24rpx;
+  background: linear-gradient(90deg, #fff0f5 0%, #fff 100%);
+  box-shadow: 0 4rpx 12rpx rgb(255 143 177 / 12%);
+}
+
+.entry--hover {
+  transform: scale(0.98);
+}
+
+.entry__name {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.entry__note {
+  font-size: 24rpx;
+  opacity: 0.6;
+}
+
 .logs {
   margin-top: 20rpx;
 }
