@@ -217,7 +217,7 @@ P5 古诗的「本周三首」（`learningProgress.guoxue.weekly.weekKey`）是�
 
 `pin` **存明文**，与线上一致：存档是本机 storage 的一条记录，能读到 storage 的人
 能读到里面任何东西 —— 哈希只防孩子，而孩子看不到 storage。所以**忘了 PIN 只能清空数据**，
-不做找回（`docs/features/parent/doc.md`；`docs/vision.md` 那条 `待确认` 于 P7 拍成定论）。
+不做找回（`docs/features/parent/doc.md`；`docs/vision.md` 那条假设于 P7 拍成定论）。
 
 `pinFails` / `pinLockedUntil` 是**水位不是设置项**：由 `utils/parent.js` 的 `verifyPin`
 累加与清零，家长端没有输入框能改它们。它们是本仓库比线上多出来的一层节流

@@ -9,12 +9,16 @@ runs/YYYY-MM-DD-<topic>.md   真实发生过的 prompt 迭代记录
 templates/                   同类 prompt 用过两次以上才提炼到这里
 ```
 
-`templates/` 目前是空的 —— 按约定，模板必须从两次以上的真实使用中长出来，
-不预先设计。方法论沿用 `../../prompt-forge`（scorecard、改写方法、评分维度），本仓库不重写。
+`templates/` 里目前一份：[templates/feature-round.md](templates/feature-round.md)
+——「一轮功能落地」的记录骨架，从 `runs/` 里 12 份同形记录提炼
+（`p3a-point` 起到 `p7-parent-3` 止）。按约定模板必须从两次以上的真实使用中长出来，
+不预先设计；这一份逾期很久才落，所以它记的是实际稳定下来的形状，不是设想。
+方法论沿用 `../../prompt-forge`（scorecard、改写方法、评分维度），本仓库不重写。
 
 ## runs 记录写什么
 
-每份记录至少包含四段：
+每份记录至少包含四段（骨架与写作要求见
+[templates/feature-round.md](templates/feature-round.md)）：
 
 1. **raw prompt** —— 最初脱口而出的那句话，原样保留，不要事后美化
 2. **improved prompt** —— 补齐目标、上下文、约束、验收标准之后的版本
